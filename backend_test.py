@@ -382,6 +382,14 @@ class StockTradingAPITester:
         self.test_ai_analysis("AAPL")
         self.test_recommendations()
         
+        # News scanning features
+        print("\n🗞️  Testing News Scanning Features...")
+        self.test_news_stats()
+        self.test_news_signals()
+        self.test_news_signals_by_symbol("AAPL")
+        self.test_news_articles()
+        self.test_news_scan_trigger()
+        
         # Print summary
         print("\n" + "=" * 50)
         print(f"📊 Test Results: {self.tests_passed}/{self.tests_run} passed")
