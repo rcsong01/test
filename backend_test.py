@@ -49,26 +49,37 @@ class StockTradingAPITester:
             return False
 
     def test_trending_stocks(self):
-        """Test trending stocks endpoint"""
+        """Test trending stocks endpoint with real data verification"""
         try:
             response = requests.get(f"{self.api_url}/stocks/trending", timeout=15)
             if response.status_code == 200:
                 data = response.json()
-                success = isinstance(data, list) and len(data) > 0
+                success = isinstance(data, list) and len(data) >= 8  # Should have 8 trending stocks
                 if success:
                     # Check if we have expected stocks like AAPL, MSFT
                     symbols = [stock.get('symbol', '') for stock in data]
                     has_expected = any(symbol in ['AAPL', 'MSFT', 'GOOGL'] for symbol in symbols)
-                    self.log_test("Trending Stocks", has_expected, f"Found {len(data)} stocks: {symbols[:3]}")
-                    return has_expected
+                    
+                    # Verify real data - check if prices are realistic (not 0 or obviously fake)
+                    real_data = True
+                    for stock in data:
+                        price = stock.get('price', 0)
+                        if price <= 0 or price > 10000:  # Basic sanity check
+                            real_data = False
+                            break
+                    
+                    overall_success = has_expected and real_data
+                    self.log_test("Trending Stocks (Real Data)", overall_success, 
+                                f"Found {len(data)} stocks: {symbols[:3]}, Real prices: {real_data}")
+                    return overall_success
                 else:
-                    self.log_test("Trending Stocks", False, "Empty or invalid response")
+                    self.log_test("Trending Stocks (Real Data)", False, "Empty or invalid response")
                     return False
             else:
-                self.log_test("Trending Stocks", False, f"Status: {response.status_code}")
+                self.log_test("Trending Stocks (Real Data)", False, f"Status: {response.status_code}")
                 return False
         except Exception as e:
-            self.log_test("Trending Stocks", False, str(e))
+            self.log_test("Trending Stocks (Real Data)", False, str(e))
             return False
 
     def test_stock_quote(self, symbol="AAPL"):
