@@ -155,28 +155,28 @@ class NewsSignal(BaseModel):
     news_url: str
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
-# Company symbols and names mapping
+# Company symbols and names mapping with search keywords
 TRACKED_COMPANIES = {
-    "AAPL": "Apple Inc.",
-    "MSFT": "Microsoft Corporation",
-    "GOOGL": "Alphabet Inc.",
-    "AMZN": "Amazon.com Inc.",
-    "NVDA": "NVIDIA Corporation",
-    "META": "Meta Platforms Inc.",
-    "TSLA": "Tesla Inc.",
-    "JPM": "JPMorgan Chase & Co.",
-    "V": "Visa Inc.",
-    "WMT": "Walmart Inc.",
-    "JNJ": "Johnson & Johnson",
-    "PG": "Procter & Gamble Co.",
-    "MA": "Mastercard Inc.",
-    "UNH": "UnitedHealth Group Inc.",
-    "HD": "The Home Depot Inc.",
-    "DIS": "The Walt Disney Company",
-    "BAC": "Bank of America Corp.",
-    "NFLX": "Netflix Inc.",
-    "ADBE": "Adobe Inc.",
-    "CRM": "Salesforce Inc."
+    "AAPL": {"name": "Apple Inc.", "keywords": ["apple", "iphone", "ipad", "mac", "tim cook", "app store"]},
+    "MSFT": {"name": "Microsoft Corporation", "keywords": ["microsoft", "windows", "azure", "satya nadella", "xbox", "linkedin"]},
+    "GOOGL": {"name": "Alphabet Inc.", "keywords": ["google", "alphabet", "youtube", "android", "waymo", "sundar pichai"]},
+    "AMZN": {"name": "Amazon.com Inc.", "keywords": ["amazon", "aws", "prime", "alexa", "andy jassy", "whole foods"]},
+    "NVDA": {"name": "NVIDIA Corporation", "keywords": ["nvidia", "geforce", "gpu", "jensen huang", "cuda", "ai chip"]},
+    "META": {"name": "Meta Platforms Inc.", "keywords": ["meta", "facebook", "instagram", "whatsapp", "zuckerberg", "metaverse"]},
+    "TSLA": {"name": "Tesla Inc.", "keywords": ["tesla", "elon musk", "electric vehicle", "ev", "model 3", "model y", "cybertruck"]},
+    "JPM": {"name": "JPMorgan Chase & Co.", "keywords": ["jpmorgan", "jp morgan", "jamie dimon", "chase bank"]},
+    "V": {"name": "Visa Inc.", "keywords": ["visa"]},
+    "WMT": {"name": "Walmart Inc.", "keywords": ["walmart", "wal-mart"]},
+    "JNJ": {"name": "Johnson & Johnson", "keywords": ["johnson & johnson", "j&j"]},
+    "PG": {"name": "Procter & Gamble Co.", "keywords": ["procter & gamble", "p&g"]},
+    "MA": {"name": "Mastercard Inc.", "keywords": ["mastercard"]},
+    "UNH": {"name": "UnitedHealth Group Inc.", "keywords": ["unitedhealth", "united health"]},
+    "HD": {"name": "The Home Depot Inc.", "keywords": ["home depot"]},
+    "DIS": {"name": "The Walt Disney Company", "keywords": ["disney", "walt disney", "disney+", "espn", "marvel"]},
+    "BAC": {"name": "Bank of America Corp.", "keywords": ["bank of america", "bofa"]},
+    "NFLX": {"name": "Netflix Inc.", "keywords": ["netflix"]},
+    "ADBE": {"name": "Adobe Inc.", "keywords": ["adobe", "photoshop", "creative cloud"]},
+    "CRM": {"name": "Salesforce Inc.", "keywords": ["salesforce", "marc benioff"]}
 }
 
 # Reliable news sources RSS feeds
