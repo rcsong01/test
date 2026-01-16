@@ -25,6 +25,14 @@ export const api = {
   
   // Balance
   getBalance: () => axios.get(`${API}/balance`),
+  
+  // News endpoints
+  getNewsSignals: (limit = 20) => axios.get(`${API}/news/signals?limit=${limit}`),
+  getNewsSignalsBySymbol: (symbol) => axios.get(`${API}/news/signals/${symbol}`),
+  getNewsArticles: (limit = 50) => axios.get(`${API}/news/articles?limit=${limit}`),
+  getNewsArticlesBySymbol: (symbol) => axios.get(`${API}/news/articles/${symbol}`),
+  triggerNewsScan: () => axios.post(`${API}/news/scan`),
+  getNewsStats: () => axios.get(`${API}/news/stats`),
 };
 
 export default api;
