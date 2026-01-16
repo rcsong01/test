@@ -367,7 +367,7 @@ class StockTradingAPITester:
             
             response = requests.post(f"{self.api_url}/alerts/subscribe", 
                                    json=subscription_data, timeout=10)
-            success = response.status_code == 201
+            success = response.status_code == 200  # API returns 200, not 201
             
             if success:
                 data = response.json()
