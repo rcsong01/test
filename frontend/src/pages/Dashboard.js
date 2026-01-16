@@ -19,7 +19,8 @@ import {
   Zap,
   ExternalLink,
   Radio,
-  AlertTriangle
+  AlertTriangle,
+  Bell
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -32,6 +33,7 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart,
 import api from '../lib/api';
 import { formatCurrency, formatPercent, formatLargeNumber, cn } from '../lib/utils';
 import { toast } from 'sonner';
+import { SignalAlertsModal } from '../components/SignalAlertsModal';
 
 // Stock Card Component
 const StockCard = ({ stock, onClick, onAddWatchlist }) => {
