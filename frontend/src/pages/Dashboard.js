@@ -14,7 +14,12 @@ import {
   ChevronRight,
   BarChart3,
   Wallet,
-  Star
+  Star,
+  Newspaper,
+  Zap,
+  ExternalLink,
+  Radio,
+  AlertTriangle
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -101,6 +106,80 @@ const PortfolioSummary = ({ portfolio }) => {
         </div>
       </CardContent>
     </Card>
+  );
+};
+
+// News Signal Card Component
+const NewsSignalCard = ({ signal, onClick }) => {
+  const getSignalColor = (sig) => {
+    switch (sig) {
+      case 'BUY': return 'bg-positive text-black';
+      case 'SELL': return 'bg-negative text-white';
+      default: return 'bg-accent text-white';
+    }
+  };
+  
+  const getSignalIcon = (sig) => {
+    switch (sig) {
+      case 'BUY': return <TrendingUp className="h-4 w-4" />;
+      case 'SELL': return <TrendingDown className="h-4 w-4" />;
+      default: return <Minus className="h-4 w-4" />;
+    }
+  };
+  
+  return (
+    <div 
+      className="p-4 border border-border bg-card hover:bg-secondary/30 cursor-pointer transition-all duration-200 relative overflow-hidden group"
+      onClick={() => onClick(signal.symbol)}
+      data-testid={`news-signal-${signal.id}`}
+    >
+      {/* Signal indicator stripe */}
+      <div className={cn(
+        "absolute left-0 top-0 bottom-0 w-1",
+        signal.signal === 'BUY' ? 'bg-positive' : signal.signal === 'SELL' ? 'bg-negative' : 'bg-accent'
+      )} />
+      
+      <div className="pl-3">
+        <div className="flex justify-between items-start mb-2">
+          <div className="flex items-center gap-2">
+            <Badge className={cn("font-mono text-xs", getSignalColor(signal.signal))}>
+              {getSignalIcon(signal.signal)}
+              <span className="ml-1">{signal.signal}</span>
+            </Badge>
+            <span className="font-heading font-bold uppercase">{signal.symbol}</span>
+          </div>
+          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+            <Zap className="h-3 w-3" />
+            <span>{signal.confidence}%</span>
+          </div>
+        </div>
+        
+        <h4 className="text-sm font-medium mb-2 line-clamp-2 group-hover:text-primary transition-colors">
+          {signal.news_title}
+        </h4>
+        
+        <p className="text-xs text-muted-foreground mb-2 line-clamp-2">
+          {signal.reasoning}
+        </p>
+        
+        <div className="flex justify-between items-center text-xs text-muted-foreground">
+          <span className="flex items-center gap-1">
+            <Newspaper className="h-3 w-3" />
+            {signal.news_source}
+          </span>
+          <a 
+            href={signal.news_url} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="flex items-center gap-1 hover:text-primary"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <ExternalLink className="h-3 w-3" />
+            Source
+          </a>
+        </div>
+      </div>
+    </div>
   );
 };
 
@@ -275,18 +354,21 @@ const StockDetail = ({ symbol, onClose, onTrade, cashBalance }) => {
   const [quote, setQuote] = useState(null);
   const [history, setHistory] = useState([]);
   const [analysis, setAnalysis] = useState(null);
+  const [newsSignals, setNewsSignals] = useState([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [quoteRes, historyRes] = await Promise.all([
+      const [quoteRes, historyRes, newsRes] = await Promise.all([
         api.getStockQuote(symbol),
-        api.getStockHistory(symbol)
+        api.getStockHistory(symbol),
+        api.getNewsSignalsBySymbol(symbol)
       ]);
       setQuote(quoteRes.data);
       setHistory(historyRes.data.history);
+      setNewsSignals(newsRes.data);
     } catch (error) {
       toast.error('Failed to load stock data');
     }
@@ -428,6 +510,29 @@ const StockDetail = ({ symbol, onClose, onTrade, cashBalance }) => {
           <AIRecommendationCard recommendation={analysis} />
         </div>
       )}
+      
+      {/* News Signals for this stock */}
+      {newsSignals.length > 0 && (
+        <Card className="bg-card border-border">
+          <CardHeader className="pb-2">
+            <CardTitle className="font-heading text-lg uppercase tracking-tight flex items-center gap-2">
+              <Newspaper className="h-5 w-5 text-primary" />
+              News-Based Signals for {symbol}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {newsSignals.slice(0, 5).map((signal) => (
+                <NewsSignalCard 
+                  key={signal.id} 
+                  signal={signal} 
+                  onClick={() => {}}
+                />
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 };
@@ -439,25 +544,33 @@ export default function Dashboard() {
   const [watchlist, setWatchlist] = useState([]);
   const [recommendations, setRecommendations] = useState([]);
   const [transactions, setTransactions] = useState([]);
+  const [newsSignals, setNewsSignals] = useState([]);
+  const [newsStats, setNewsStats] = useState(null);
   const [selectedStock, setSelectedStock] = useState(null);
   const [searchSymbol, setSearchSymbol] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [isScanning, setIsScanning] = useState(false);
+  const [activeTab, setActiveTab] = useState('market');
   
   const fetchDashboardData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [trendingRes, portfolioRes, watchlistRes, recRes, txRes] = await Promise.all([
+      const [trendingRes, portfolioRes, watchlistRes, recRes, txRes, newsRes, statsRes] = await Promise.all([
         api.getTrendingStocks(),
         api.getPortfolio(),
         api.getWatchlist(),
         api.getRecommendations(),
-        api.getTransactions()
+        api.getTransactions(),
+        api.getNewsSignals(30),
+        api.getNewsStats()
       ]);
       setTrendingStocks(trendingRes.data);
       setPortfolio(portfolioRes.data);
       setWatchlist(watchlistRes.data);
       setRecommendations(recRes.data);
       setTransactions(txRes.data);
+      setNewsSignals(newsRes.data);
+      setNewsStats(statsRes.data);
     } catch (error) {
       console.error('Dashboard load error:', error);
     }
@@ -466,6 +579,11 @@ export default function Dashboard() {
   
   useEffect(() => {
     fetchDashboardData();
+    // Refresh news signals every 2 minutes
+    const interval = setInterval(() => {
+      api.getNewsSignals(30).then(res => setNewsSignals(res.data)).catch(() => {});
+    }, 120000);
+    return () => clearInterval(interval);
   }, [fetchDashboardData]);
   
   const handleTrade = async (tradeData) => {
@@ -500,6 +618,22 @@ export default function Dashboard() {
     }
   };
   
+  const handleScanNews = async () => {
+    setIsScanning(true);
+    try {
+      await api.triggerNewsScan();
+      toast.success('News scan started - signals will appear shortly');
+      // Refresh after a delay to show new signals
+      setTimeout(() => {
+        api.getNewsSignals(30).then(res => setNewsSignals(res.data)).catch(() => {});
+        api.getNewsStats().then(res => setNewsStats(res.data)).catch(() => {});
+      }, 5000);
+    } catch (error) {
+      toast.error('Failed to start news scan');
+    }
+    setIsScanning(false);
+  };
+  
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -520,6 +654,12 @@ export default function Dashboard() {
             <Activity className="h-8 w-8 text-primary" />
             <h1 className="font-heading text-2xl font-bold uppercase tracking-tight">MarketGenius</h1>
             <Badge className="bg-primary text-black font-mono text-xs">AI</Badge>
+            {newsStats && (
+              <div className="hidden md:flex items-center gap-2 ml-4 text-xs text-muted-foreground">
+                <Radio className="h-3 w-3 text-primary animate-pulse" />
+                <span>{newsStats.total_signals_generated} signals</span>
+              </div>
+            )}
           </div>
           
           <form onSubmit={handleSearch} className="flex gap-2">
@@ -538,15 +678,27 @@ export default function Dashboard() {
             </Button>
           </form>
           
-          <Button 
-            variant="outline" 
-            onClick={fetchDashboardData}
-            className="font-mono uppercase tracking-wider"
-            data-testid="refresh-btn"
-          >
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Refresh
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              onClick={handleScanNews}
+              disabled={isScanning}
+              className="font-mono uppercase tracking-wider"
+              data-testid="scan-news-btn"
+            >
+              {isScanning ? <RefreshCw className="h-4 w-4 animate-spin mr-2" /> : <Newspaper className="h-4 w-4 mr-2" />}
+              Scan News
+            </Button>
+            <Button 
+              variant="outline" 
+              onClick={fetchDashboardData}
+              className="font-mono uppercase tracking-wider"
+              data-testid="refresh-btn"
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Refresh
+            </Button>
+          </div>
         </div>
       </header>
       
@@ -572,7 +724,7 @@ export default function Dashboard() {
         ) : (
           <div className="grid grid-cols-12 gap-6">
             {/* Left Column - Portfolio & Holdings */}
-            <div className="col-span-12 lg:col-span-4 space-y-6">
+            <div className="col-span-12 lg:col-span-3 space-y-6">
               <PortfolioSummary portfolio={portfolio} />
               
               {/* Holdings */}
@@ -584,7 +736,7 @@ export default function Dashboard() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <ScrollArea className="h-64">
+                  <ScrollArea className="h-48">
                     {portfolio.holdings.length === 0 ? (
                       <div className="text-center py-8 text-muted-foreground">
                         <DollarSign className="h-12 w-12 mx-auto mb-2 opacity-50" />
@@ -624,66 +776,7 @@ export default function Dashboard() {
                   </ScrollArea>
                 </CardContent>
               </Card>
-            </div>
-            
-            {/* Center Column - Market & AI */}
-            <div className="col-span-12 lg:col-span-5 space-y-6">
-              {/* Trending Stocks */}
-              <Card className="bg-card border-border">
-                <CardHeader className="pb-2">
-                  <CardTitle className="font-heading text-lg uppercase tracking-tight flex items-center gap-2">
-                    <BarChart3 className="h-5 w-5 text-primary" />
-                    Market Overview
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-2 gap-0">
-                    {trendingStocks.slice(0, 8).map((stock) => (
-                      <StockCard 
-                        key={stock.symbol}
-                        stock={stock}
-                        onClick={(s) => setSelectedStock(s.symbol)}
-                        onAddWatchlist={handleAddWatchlist}
-                      />
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
               
-              {/* AI Recommendations */}
-              <Card className="bg-card border-border">
-                <CardHeader className="pb-2">
-                  <CardTitle className="font-heading text-lg uppercase tracking-tight flex items-center gap-2">
-                    <Cpu className="h-5 w-5 text-primary" />
-                    AI Recommendations
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {recommendations.length === 0 ? (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <Cpu className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                      <p className="font-mono text-sm">No recommendations yet</p>
-                      <p className="text-xs">Analyze a stock to get AI insights</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {recommendations.slice(0, 3).map((rec) => (
-                        <div 
-                          key={rec.id} 
-                          className="cursor-pointer"
-                          onClick={() => setSelectedStock(rec.symbol)}
-                        >
-                          <AIRecommendationCard recommendation={rec} />
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-            
-            {/* Right Column - Watchlist & Transactions */}
-            <div className="col-span-12 lg:col-span-3 space-y-6">
               {/* Watchlist */}
               <Card className="bg-card border-border">
                 <CardHeader className="pb-2">
@@ -693,29 +786,28 @@ export default function Dashboard() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <ScrollArea className="h-48">
+                  <ScrollArea className="h-36">
                     {watchlist.length === 0 ? (
-                      <div className="text-center py-8 text-muted-foreground">
-                        <Star className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                      <div className="text-center py-6 text-muted-foreground">
+                        <Star className="h-8 w-8 mx-auto mb-2 opacity-50" />
                         <p className="font-mono text-sm">Watchlist empty</p>
-                        <p className="text-xs">Click star on stocks to track</p>
                       </div>
                     ) : (
                       <div className="space-y-2">
                         {watchlist.map((item) => (
                           <div 
                             key={item.symbol}
-                            className="p-3 bg-secondary/30 border border-border flex justify-between items-center cursor-pointer hover:bg-secondary/50"
+                            className="p-2 bg-secondary/30 border border-border flex justify-between items-center cursor-pointer hover:bg-secondary/50"
                             onClick={() => setSelectedStock(item.symbol)}
                             data-testid={`watchlist-item-${item.symbol}`}
                           >
                             <div>
-                              <div className="font-heading font-semibold uppercase">{item.symbol}</div>
-                              <div className="font-mono">{formatCurrency(item.price)}</div>
+                              <div className="font-heading font-semibold uppercase text-sm">{item.symbol}</div>
+                              <div className="font-mono text-sm">{formatCurrency(item.price)}</div>
                             </div>
                             <div className="flex items-center gap-2">
                               <span className={cn(
-                                "font-mono text-sm",
+                                "font-mono text-xs",
                                 item.change >= 0 ? "text-positive" : "text-negative"
                               )}>
                                 {formatPercent(item.change_percent)}
@@ -723,11 +815,11 @@ export default function Dashboard() {
                               <Button 
                                 variant="ghost" 
                                 size="sm" 
-                                className="h-6 w-6 p-0 text-destructive"
+                                className="h-5 w-5 p-0 text-destructive"
                                 onClick={(e) => { e.stopPropagation(); handleRemoveWatchlist(item.symbol); }}
                                 data-testid={`remove-watchlist-${item.symbol}`}
                               >
-                                <Minus className="h-4 w-4" />
+                                <Minus className="h-3 w-3" />
                               </Button>
                             </div>
                           </div>
@@ -737,7 +829,159 @@ export default function Dashboard() {
                   </ScrollArea>
                 </CardContent>
               </Card>
-              
+            </div>
+            
+            {/* Center Column - Main Content with Tabs */}
+            <div className="col-span-12 lg:col-span-6 space-y-6">
+              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                <TabsList className="grid w-full grid-cols-2 bg-secondary">
+                  <TabsTrigger value="market" className="font-mono uppercase text-xs data-[state=active]:bg-primary data-[state=active]:text-black">
+                    <BarChart3 className="h-4 w-4 mr-2" />
+                    Market
+                  </TabsTrigger>
+                  <TabsTrigger value="news" className="font-mono uppercase text-xs data-[state=active]:bg-primary data-[state=active]:text-black">
+                    <Newspaper className="h-4 w-4 mr-2" />
+                    News Signals
+                    {newsSignals.length > 0 && (
+                      <Badge className="ml-2 bg-destructive text-white text-xs">{newsSignals.length}</Badge>
+                    )}
+                  </TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="market" className="mt-4">
+                  {/* Trending Stocks */}
+                  <Card className="bg-card border-border">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="font-heading text-lg uppercase tracking-tight flex items-center gap-2">
+                        <BarChart3 className="h-5 w-5 text-primary" />
+                        Market Overview
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-2 gap-0">
+                        {trendingStocks.slice(0, 8).map((stock) => (
+                          <StockCard 
+                            key={stock.symbol}
+                            stock={stock}
+                            onClick={(s) => setSelectedStock(s.symbol)}
+                            onAddWatchlist={handleAddWatchlist}
+                          />
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                  
+                  {/* AI Recommendations */}
+                  <Card className="bg-card border-border mt-6">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="font-heading text-lg uppercase tracking-tight flex items-center gap-2">
+                        <Cpu className="h-5 w-5 text-primary" />
+                        AI Recommendations
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      {recommendations.length === 0 ? (
+                        <div className="text-center py-8 text-muted-foreground">
+                          <Cpu className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                          <p className="font-mono text-sm">No recommendations yet</p>
+                          <p className="text-xs">Analyze a stock to get AI insights</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-4">
+                          {recommendations.slice(0, 3).map((rec) => (
+                            <div 
+                              key={rec.id} 
+                              className="cursor-pointer"
+                              onClick={() => setSelectedStock(rec.symbol)}
+                            >
+                              <AIRecommendationCard recommendation={rec} />
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+                
+                <TabsContent value="news" className="mt-4">
+                  {/* News Stats */}
+                  {newsStats && (
+                    <div className="grid grid-cols-4 gap-3 mb-6">
+                      <div className="p-3 bg-card border border-border">
+                        <div className="text-muted-foreground text-xs uppercase mb-1">Articles</div>
+                        <div className="font-mono text-xl">{newsStats.total_articles_analyzed}</div>
+                      </div>
+                      <div className="p-3 bg-card border border-border">
+                        <div className="text-muted-foreground text-xs uppercase mb-1">Signals</div>
+                        <div className="font-mono text-xl">{newsStats.total_signals_generated}</div>
+                      </div>
+                      <div className="p-3 bg-card border border-border">
+                        <div className="text-muted-foreground text-xs uppercase mb-1">Buy</div>
+                        <div className="font-mono text-xl text-positive">{newsStats.buy_signals}</div>
+                      </div>
+                      <div className="p-3 bg-card border border-border">
+                        <div className="text-muted-foreground text-xs uppercase mb-1">Sell</div>
+                        <div className="font-mono text-xl text-negative">{newsStats.sell_signals}</div>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* News Signals Feed */}
+                  <Card className="bg-card border-border">
+                    <CardHeader className="pb-2">
+                      <div className="flex justify-between items-center">
+                        <CardTitle className="font-heading text-lg uppercase tracking-tight flex items-center gap-2">
+                          <Zap className="h-5 w-5 text-primary" />
+                          Live News Signals
+                          <Radio className="h-3 w-3 text-primary animate-pulse ml-2" />
+                        </CardTitle>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={handleScanNews}
+                          disabled={isScanning}
+                          className="font-mono text-xs"
+                        >
+                          {isScanning ? <RefreshCw className="h-3 w-3 animate-spin" /> : 'Scan Now'}
+                        </Button>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <ScrollArea className="h-[500px]">
+                        {newsSignals.length === 0 ? (
+                          <div className="text-center py-12 text-muted-foreground">
+                            <Newspaper className="h-16 w-16 mx-auto mb-4 opacity-50" />
+                            <p className="font-mono text-sm mb-2">No news signals yet</p>
+                            <p className="text-xs mb-4">Click "Scan News" to analyze latest market news</p>
+                            <Button 
+                              onClick={handleScanNews}
+                              disabled={isScanning}
+                              className="bg-primary text-black font-mono uppercase"
+                            >
+                              {isScanning ? <RefreshCw className="h-4 w-4 animate-spin mr-2" /> : <Newspaper className="h-4 w-4 mr-2" />}
+                              Start Scanning
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="space-y-3">
+                            {newsSignals.map((signal) => (
+                              <NewsSignalCard 
+                                key={signal.id} 
+                                signal={signal} 
+                                onClick={(symbol) => setSelectedStock(symbol)}
+                              />
+                            ))}
+                          </div>
+                        )}
+                      </ScrollArea>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+              </Tabs>
+            </div>
+            
+            {/* Right Column - Transactions */}
+            <div className="col-span-12 lg:col-span-3 space-y-6">
               {/* Recent Transactions */}
               <Card className="bg-card border-border">
                 <CardHeader className="pb-2">
@@ -747,7 +991,7 @@ export default function Dashboard() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <ScrollArea className="h-64">
+                  <ScrollArea className="h-[400px]">
                     {transactions.length === 0 ? (
                       <div className="text-center py-8 text-muted-foreground">
                         <Activity className="h-12 w-12 mx-auto mb-2 opacity-50" />
@@ -756,7 +1000,7 @@ export default function Dashboard() {
                       </div>
                     ) : (
                       <div className="space-y-2">
-                        {transactions.slice(0, 10).map((tx) => (
+                        {transactions.slice(0, 15).map((tx) => (
                           <div 
                             key={tx.id}
                             className="p-3 bg-secondary/30 border border-border data-row"
@@ -787,6 +1031,21 @@ export default function Dashboard() {
                       </div>
                     )}
                   </ScrollArea>
+                </CardContent>
+              </Card>
+              
+              {/* Quick Tips */}
+              <Card className="bg-card border border-primary/20">
+                <CardContent className="pt-4">
+                  <div className="flex items-start gap-3">
+                    <AlertTriangle className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+                    <div>
+                      <h4 className="font-heading text-sm uppercase tracking-tight mb-1">Paper Trading</h4>
+                      <p className="text-xs text-muted-foreground">
+                        This is simulated trading with virtual money. Use it to practice strategies based on AI signals before trading with real funds.
+                      </p>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
             </div>
