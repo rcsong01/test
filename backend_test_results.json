@@ -1,0 +1,84 @@
+{
+  "timestamp": "2026-01-16T17:12:31.589625",
+  "tests_run": 15,
+  "tests_passed": 15,
+  "success_rate": 100.0,
+  "failed_tests": [],
+  "detailed_results": {
+    "API Root": {
+      "success": true,
+      "details": "Status: 200",
+      "timestamp": "2026-01-16T17:12:23.656219"
+    },
+    "Trending Stocks": {
+      "success": true,
+      "details": "Found 8 stocks: ['AAPL', 'MSFT', 'GOOGL']",
+      "timestamp": "2026-01-16T17:12:24.688575"
+    },
+    "Stock Quote (AAPL)": {
+      "success": true,
+      "details": "Price: $107.63",
+      "timestamp": "2026-01-16T17:12:24.857272"
+    },
+    "Stock Quote (MSFT)": {
+      "success": true,
+      "details": "Price: $456.66",
+      "timestamp": "2026-01-16T17:12:25.038931"
+    },
+    "Stock History (AAPL)": {
+      "success": true,
+      "details": "History points: 30",
+      "timestamp": "2026-01-16T17:12:25.182330"
+    },
+    "Portfolio": {
+      "success": true,
+      "details": "Cash: $100000.0, Holdings: 0",
+      "timestamp": "2026-01-16T17:12:25.216928"
+    },
+    "Balance": {
+      "success": true,
+      "details": "Balance: $100000.0",
+      "timestamp": "2026-01-16T17:12:25.250124"
+    },
+    "Watchlist GET": {
+      "success": true,
+      "details": "Items: 0",
+      "timestamp": "2026-01-16T17:12:25.288215"
+    },
+    "Watchlist ADD": {
+      "success": true,
+      "details": "Added TSLA",
+      "timestamp": "2026-01-16T17:12:25.340199"
+    },
+    "Watchlist REMOVE": {
+      "success": true,
+      "details": "Status: 200",
+      "timestamp": "2026-01-16T17:12:25.378792"
+    },
+    "Trading BUY": {
+      "success": true,
+      "details": "Bought 1 share of AAPL",
+      "timestamp": "2026-01-16T17:12:25.773023"
+    },
+    "Trading SELL": {
+      "success": true,
+      "details": "Status: 200",
+      "timestamp": "2026-01-16T17:12:25.810034"
+    },
+    "Transactions": {
+      "success": true,
+      "details": "Found 2 transactions",
+      "timestamp": "2026-01-16T17:12:25.846452"
+    },
+    "AI Analysis (AAPL)": {
+      "success": true,
+      "details": "Rec: SELL, Confidence: 82%",
+      "timestamp": "2026-01-16T17:12:31.526881"
+    },
+    "AI Recommendations": {
+      "success": true,
+      "details": "Found 1 recommendations",
+      "timestamp": "2026-01-16T17:12:31.588704"
+    }
+  }
+}
