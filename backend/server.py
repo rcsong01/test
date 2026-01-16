@@ -161,6 +161,50 @@ class NewsSignal(BaseModel):
     news_url: str
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
+# Premium Alert Subscription Models
+class AlertSubscription(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    email: str
+    is_active: bool = True
+    min_confidence: int = 70  # Minimum confidence to trigger alert
+    signal_types: List[str] = ["BUY", "SELL"]  # Which signals to alert on
+    watched_symbols: List[str] = []  # Empty = all symbols
+    tier: str = "free"  # free, premium
+    alerts_sent_today: int = 0
+    last_alert_date: Optional[str] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class AlertSubscriptionCreate(BaseModel):
+    email: EmailStr
+    min_confidence: int = 70
+    signal_types: List[str] = ["BUY", "SELL"]
+    watched_symbols: List[str] = []
+
+class AlertSubscriptionUpdate(BaseModel):
+    is_active: Optional[bool] = None
+    min_confidence: Optional[int] = None
+    signal_types: Optional[List[str]] = None
+    watched_symbols: Optional[List[str]] = None
+
+class AlertLog(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    subscription_id: str
+    email: str
+    signal_id: str
+    symbol: str
+    signal_type: str
+    confidence: int
+    sent_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    status: str = "sent"  # sent, failed
+
+# Alert limits per tier
+ALERT_LIMITS = {
+    "free": 3,      # 3 alerts per day
+    "premium": 50   # 50 alerts per day
+}
+
 # Company symbols and names mapping with search keywords
 TRACKED_COMPANIES = {
     "AAPL": {"name": "Apple Inc.", "keywords": ["apple", "iphone", "ipad", "mac", "tim cook", "app store"]},
