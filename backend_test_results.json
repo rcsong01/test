@@ -1,16 +1,16 @@
 {
-  "timestamp": "2026-01-16T17:54:15.655396",
-  "tests_run": 28,
-  "tests_passed": 25,
-  "success_rate": 89.28571428571429,
+  "timestamp": "2026-01-16T18:11:08.560200",
+  "tests_run": 31,
+  "tests_passed": 28,
+  "success_rate": 90.32258064516128,
   "failed_tests": [
     {
       "test": "Portfolio",
-      "error": "Cash: $98652.01000000001, Holdings: 1"
+      "error": "Cash: $98657.01000000001, Holdings: 1"
     },
     {
       "test": "Balance",
-      "error": "Balance: $98652.01000000001"
+      "error": "Balance: $98657.01000000001"
     },
     {
       "test": "Send Test Alert",
@@ -21,142 +21,157 @@
     "API Root": {
       "success": true,
       "details": "Status: 200",
-      "timestamp": "2026-01-16T17:54:04.258300"
+      "timestamp": "2026-01-16T18:10:56.705413"
     },
-    "Trending Stocks": {
+    "YFinance Integration (No Mock Data)": {
       "success": true,
-      "details": "Found 8 stocks: ['AAPL', 'MSFT', 'GOOGL']",
-      "timestamp": "2026-01-16T17:54:05.181781"
+      "details": "Tested 3 symbols, All working: True",
+      "timestamp": "2026-01-16T18:10:57.392567"
     },
-    "Stock Quote (AAPL)": {
+    "Trending Stocks (Real Data)": {
       "success": true,
-      "details": "Price: $280.08",
-      "timestamp": "2026-01-16T17:54:05.331347"
+      "details": "Found 8 stocks: ['AAPL', 'MSFT', 'GOOGL'], Real prices: True",
+      "timestamp": "2026-01-16T18:10:58.513342"
     },
-    "Stock Quote (MSFT)": {
+    "All 8 Trending Stocks Real Data": {
       "success": true,
-      "details": "Price: $456.66",
-      "timestamp": "2026-01-16T17:54:05.493237"
+      "details": "Tested 8 stocks. Failed: None",
+      "timestamp": "2026-01-16T18:10:58.828444"
     },
-    "Stock History (AAPL)": {
+    "AAPL Price Range Check": {
       "success": true,
-      "details": "History points: 30",
-      "timestamp": "2026-01-16T17:54:05.626046"
+      "details": "AAPL Price: $255.47 (Expected: $200-300 range)",
+      "timestamp": "2026-01-16T18:10:58.900624"
+    },
+    "Stock Quote (AAPL) Real Data": {
+      "success": true,
+      "details": "Price: $255.47, Volume: 28,502,467, Real: True",
+      "timestamp": "2026-01-16T18:10:58.900639"
+    },
+    "Stock Quote (MSFT) Real Data": {
+      "success": true,
+      "details": "Price: $461.77, Volume: 12,978,681, Real: True",
+      "timestamp": "2026-01-16T18:10:58.960467"
+    },
+    "Stock History (AAPL) Real 30-Day Data": {
+      "success": true,
+      "details": "History points: 22, Real data: True",
+      "timestamp": "2026-01-16T18:10:59.327276"
     },
     "Portfolio": {
       "success": false,
-      "details": "Cash: $98652.01000000001, Holdings: 1",
-      "timestamp": "2026-01-16T17:54:05.764885"
+      "details": "Cash: $98657.01000000001, Holdings: 1",
+      "timestamp": "2026-01-16T18:10:59.479331"
     },
     "Balance": {
       "success": false,
-      "details": "Balance: $98652.01000000001",
-      "timestamp": "2026-01-16T17:54:05.797936"
+      "details": "Balance: $98657.01000000001",
+      "timestamp": "2026-01-16T18:10:59.517078"
     },
     "Watchlist GET": {
       "success": true,
       "details": "Items: 0",
-      "timestamp": "2026-01-16T17:54:05.836926"
+      "timestamp": "2026-01-16T18:10:59.550380"
     },
     "Watchlist ADD": {
       "success": true,
       "details": "Added TSLA",
-      "timestamp": "2026-01-16T17:54:05.872837"
+      "timestamp": "2026-01-16T18:10:59.621823"
     },
     "Watchlist REMOVE": {
       "success": true,
       "details": "Status: 200",
-      "timestamp": "2026-01-16T17:54:05.904067"
+      "timestamp": "2026-01-16T18:10:59.653166"
     },
     "Trading BUY": {
       "success": true,
       "details": "Bought 1 share of AAPL",
-      "timestamp": "2026-01-16T17:54:05.944754"
+      "timestamp": "2026-01-16T18:10:59.688889"
     },
     "Trading SELL": {
       "success": true,
       "details": "Status: 200",
-      "timestamp": "2026-01-16T17:54:05.980019"
+      "timestamp": "2026-01-16T18:10:59.722676"
     },
     "Transactions": {
       "success": true,
-      "details": "Found 10 transactions",
-      "timestamp": "2026-01-16T17:54:06.024228"
+      "details": "Found 12 transactions",
+      "timestamp": "2026-01-16T18:10:59.757878"
     },
     "AI Analysis (AAPL)": {
       "success": true,
-      "details": "Rec: SELL, Confidence: 72%",
-      "timestamp": "2026-01-16T17:54:14.256348"
+      "details": "Rec: HOLD, Confidence: 62%",
+      "timestamp": "2026-01-16T18:11:05.065001"
     },
     "AI Recommendations": {
       "success": true,
-      "details": "Found 4 recommendations",
-      "timestamp": "2026-01-16T17:54:14.313038"
+      "details": "Found 6 recommendations",
+      "timestamp": "2026-01-16T18:11:05.123868"
     },
     "News Stats": {
       "success": true,
-      "details": "Articles: 47, Signals: 1",
-      "timestamp": "2026-01-16T17:54:14.348221"
+      "details": "Articles: 50, Signals: 1",
+      "timestamp": "2026-01-16T18:11:05.161048"
     },
     "News Signals": {
       "success": true,
       "details": "Found 1 news signals",
-      "timestamp": "2026-01-16T17:54:14.385722"
+      "timestamp": "2026-01-16T18:11:05.195486"
     },
     "News Signal Structure": {
       "success": true,
       "details": "Signal: BUY, Confidence: 68%",
-      "timestamp": "2026-01-16T17:54:14.385737"
+      "timestamp": "2026-01-16T18:11:05.195501"
     },
     "News Signals (AAPL)": {
       "success": true,
       "details": "Found 0 signals for AAPL",
-      "timestamp": "2026-01-16T17:54:14.423667"
+      "timestamp": "2026-01-16T18:11:05.228558"
     },
     "News Articles": {
       "success": true,
       "details": "Found 5 news articles",
-      "timestamp": "2026-01-16T17:54:14.457611"
+      "timestamp": "2026-01-16T18:11:05.260898"
     },
     "News Scan Trigger": {
       "success": true,
       "details": "Response: News scan started",
-      "timestamp": "2026-01-16T17:54:14.493739"
+      "timestamp": "2026-01-16T18:11:05.292105"
     },
     "Subscribe to Alerts": {
       "success": true,
-      "details": "Email: test_1768586044@example.com, Confidence: 75%",
-      "timestamp": "2026-01-16T17:54:15.002222"
+      "details": "Email: test_1768587056@example.com, Confidence: 75%",
+      "timestamp": "2026-01-16T18:11:05.725884"
     },
     "Get Subscription": {
       "success": true,
       "details": "Active: True, Confidence: 75%",
-      "timestamp": "2026-01-16T17:54:15.039501"
+      "timestamp": "2026-01-16T18:11:05.798386"
     },
     "Update Subscription": {
       "success": true,
       "details": "New confidence: 80%, Symbols: 3",
-      "timestamp": "2026-01-16T17:54:15.074740"
+      "timestamp": "2026-01-16T18:11:07.867386"
     },
     "Send Test Alert": {
       "success": false,
       "details": "Status: 520",
-      "timestamp": "2026-01-16T17:54:15.292694"
+      "timestamp": "2026-01-16T18:11:08.092515"
     },
     "Unsubscribe": {
       "success": true,
       "details": "Subscription successfully removed",
-      "timestamp": "2026-01-16T17:54:15.362967"
+      "timestamp": "2026-01-16T18:11:08.155577"
     },
     "Duplicate Subscription Prevention": {
       "success": true,
       "details": "Second attempt status: 400",
-      "timestamp": "2026-01-16T17:54:15.615663"
+      "timestamp": "2026-01-16T18:11:08.520773"
     },
     "Alert Stats": {
       "success": true,
       "details": "Subscribers: 4, Alerts sent: 0",
-      "timestamp": "2026-01-16T17:54:15.654440"
+      "timestamp": "2026-01-16T18:11:08.559262"
     }
   }
 }
