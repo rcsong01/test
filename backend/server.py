@@ -243,96 +243,81 @@ NEWS_SOURCES = [
 # ===== HELPER FUNCTIONS =====
 
 async def get_stock_quote_from_api(symbol: str) -> dict:
-    """Fetch stock quote from Alpha Vantage API"""
-    url = f"https://www.alphavantage.co/query"
-    params = {
-        "function": "GLOBAL_QUOTE",
-        "symbol": symbol.upper(),
-        "apikey": ALPHA_VANTAGE_KEY
-    }
-    
-    async with httpx.AsyncClient() as client:
-        response = await client.get(url, params=params)
-        data = response.json()
-    
-    if "Global Quote" not in data or not data["Global Quote"]:
-        # Return mock data for demo purposes
-        import random
-        base_price = random.uniform(50, 500)
-        change = random.uniform(-10, 10)
+    """Fetch real-time stock quote from Yahoo Finance using yfinance"""
+    try:
+        # Run yfinance in thread pool to avoid blocking
+        def fetch_quote():
+            ticker = yf.Ticker(symbol.upper())
+            info = ticker.info
+            
+            # Get current price data
+            current_price = info.get('regularMarketPrice') or info.get('currentPrice', 0)
+            previous_close = info.get('previousClose') or info.get('regularMarketPreviousClose', 0)
+            change = current_price - previous_close if previous_close else 0
+            change_percent = (change / previous_close * 100) if previous_close else 0
+            
+            return {
+                "symbol": symbol.upper(),
+                "price": round(float(current_price), 2),
+                "change": round(float(change), 2),
+                "change_percent": round(float(change_percent), 2),
+                "high": round(float(info.get('dayHigh') or info.get('regularMarketDayHigh', current_price)), 2),
+                "low": round(float(info.get('dayLow') or info.get('regularMarketDayLow', current_price)), 2),
+                "open": round(float(info.get('open') or info.get('regularMarketOpen', current_price)), 2),
+                "previous_close": round(float(previous_close), 2),
+                "volume": int(info.get('volume') or info.get('regularMarketVolume', 0)),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "name": info.get('shortName') or info.get('longName', symbol.upper())
+            }
+        
+        result = await asyncio.to_thread(fetch_quote)
+        return result
+        
+    except Exception as e:
+        logger.error(f"Error fetching quote for {symbol}: {e}")
+        # Return minimal data on error
         return {
             "symbol": symbol.upper(),
-            "price": round(base_price, 2),
-            "change": round(change, 2),
-            "change_percent": round((change / base_price) * 100, 2),
-            "high": round(base_price * 1.02, 2),
-            "low": round(base_price * 0.98, 2),
-            "open": round(base_price - change/2, 2),
-            "previous_close": round(base_price - change, 2),
-            "volume": random.randint(1000000, 50000000),
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "price": 0,
+            "change": 0,
+            "change_percent": 0,
+            "high": 0,
+            "low": 0,
+            "open": 0,
+            "previous_close": 0,
+            "volume": 0,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "name": symbol.upper(),
+            "error": str(e)
         }
-    
-    quote = data["Global Quote"]
-    return {
-        "symbol": quote.get("01. symbol", symbol.upper()),
-        "price": float(quote.get("05. price", 0)),
-        "change": float(quote.get("09. change", 0)),
-        "change_percent": float(quote.get("10. change percent", "0%").replace("%", "")),
-        "high": float(quote.get("03. high", 0)),
-        "low": float(quote.get("04. low", 0)),
-        "open": float(quote.get("02. open", 0)),
-        "previous_close": float(quote.get("08. previous close", 0)),
-        "volume": int(quote.get("06. volume", 0)),
-        "timestamp": quote.get("07. latest trading day", datetime.now(timezone.utc).isoformat())
-    }
 
 async def get_stock_history(symbol: str) -> List[dict]:
-    """Fetch historical stock data from Alpha Vantage"""
-    url = f"https://www.alphavantage.co/query"
-    params = {
-        "function": "TIME_SERIES_DAILY",
-        "symbol": symbol.upper(),
-        "apikey": ALPHA_VANTAGE_KEY,
-        "outputsize": "compact"
-    }
-    
-    async with httpx.AsyncClient() as client:
-        response = await client.get(url, params=params)
-        data = response.json()
-    
-    if "Time Series (Daily)" not in data:
-        # Generate mock historical data
-        import random
-        history = []
-        base_price = random.uniform(100, 400)
-        for i in range(30):
-            date = datetime.now(timezone.utc).replace(day=max(1, datetime.now().day - i))
-            change = random.uniform(-5, 5)
-            base_price += change
-            history.append({
-                "date": date.strftime("%Y-%m-%d"),
-                "open": round(base_price - 2, 2),
-                "high": round(base_price + 3, 2),
-                "low": round(base_price - 3, 2),
-                "close": round(base_price, 2),
-                "volume": random.randint(1000000, 20000000)
-            })
-        return history[::-1]
-    
-    time_series = data["Time Series (Daily)"]
-    history = []
-    for date_str, values in list(time_series.items())[:30]:
-        history.append({
-            "date": date_str,
-            "open": float(values["1. open"]),
-            "high": float(values["2. high"]),
-            "low": float(values["3. low"]),
-            "close": float(values["4. close"]),
-            "volume": int(values["5. volume"])
-        })
-    
-    return history[::-1]
+    """Fetch historical stock data from Yahoo Finance using yfinance"""
+    try:
+        def fetch_history():
+            ticker = yf.Ticker(symbol.upper())
+            # Get 30 days of daily data
+            hist = ticker.history(period="1mo", interval="1d")
+            
+            history = []
+            for date, row in hist.iterrows():
+                history.append({
+                    "date": date.strftime("%Y-%m-%d"),
+                    "open": round(float(row['Open']), 2),
+                    "high": round(float(row['High']), 2),
+                    "low": round(float(row['Low']), 2),
+                    "close": round(float(row['Close']), 2),
+                    "volume": int(row['Volume'])
+                })
+            
+            return history
+        
+        result = await asyncio.to_thread(fetch_history)
+        return result
+        
+    except Exception as e:
+        logger.error(f"Error fetching history for {symbol}: {e}")
+        return []
 
 async def get_or_create_balance() -> dict:
     """Get or create user's cash balance"""
