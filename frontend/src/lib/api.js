@@ -33,6 +33,15 @@ export const api = {
   getNewsArticlesBySymbol: (symbol) => axios.get(`${API}/news/articles/${symbol}`),
   triggerNewsScan: () => axios.post(`${API}/news/scan`),
   getNewsStats: () => axios.get(`${API}/news/stats`),
+  
+  // Alert Subscription endpoints
+  subscribeToAlerts: (data) => axios.post(`${API}/alerts/subscribe`, data),
+  getSubscription: (email) => axios.get(`${API}/alerts/subscription/${email}`),
+  updateSubscription: (email, data) => axios.put(`${API}/alerts/subscription/${email}`, data),
+  unsubscribe: (email) => axios.delete(`${API}/alerts/subscription/${email}`),
+  getAlertLogs: (email) => axios.get(`${API}/alerts/logs/${email}`),
+  getAlertStats: () => axios.get(`${API}/alerts/stats`),
+  sendTestAlert: (email) => axios.post(`${API}/alerts/test/${email}`),
 };
 
 export default api;
