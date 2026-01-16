@@ -118,19 +118,42 @@ class StockTradingAPITester:
             return False
 
     def test_stock_history(self, symbol="AAPL"):
-        """Test stock historical data"""
+        """Test stock historical data with real 30-day data verification"""
         try:
             response = requests.get(f"{self.api_url}/stocks/{symbol}/history", timeout=10)
             if response.status_code == 200:
                 data = response.json()
-                success = 'history' in data and isinstance(data['history'], list) and len(data['history']) > 0
-                self.log_test(f"Stock History ({symbol})", success, f"History points: {len(data.get('history', []))}")
-                return success
+                history = data.get('history', [])
+                has_history = isinstance(history, list) and len(history) > 0
+                
+                if has_history:
+                    # Verify we have close to 30 days of data (allow for weekends/holidays)
+                    sufficient_data = len(history) >= 20  # At least 20 trading days
+                    
+                    # Check data structure and realistic values
+                    real_data = True
+                    for day in history[:5]:  # Check first 5 days
+                        required_fields = ['date', 'open', 'high', 'low', 'close', 'volume']
+                        if not all(field in day for field in required_fields):
+                            real_data = False
+                            break
+                        # Check if prices are realistic (not 0 or negative)
+                        if any(day.get(field, 0) <= 0 for field in ['open', 'high', 'low', 'close']):
+                            real_data = False
+                            break
+                    
+                    overall_success = sufficient_data and real_data
+                    self.log_test(f"Stock History ({symbol}) Real 30-Day Data", overall_success, 
+                                f"History points: {len(history)}, Real data: {real_data}")
+                    return overall_success
+                else:
+                    self.log_test(f"Stock History ({symbol}) Real 30-Day Data", False, "No history data")
+                    return False
             else:
-                self.log_test(f"Stock History ({symbol})", False, f"Status: {response.status_code}")
+                self.log_test(f"Stock History ({symbol}) Real 30-Day Data", False, f"Status: {response.status_code}")
                 return False
         except Exception as e:
-            self.log_test(f"Stock History ({symbol})", False, str(e))
+            self.log_test(f"Stock History ({symbol}) Real 30-Day Data", False, str(e))
             return False
 
     def test_portfolio(self):
