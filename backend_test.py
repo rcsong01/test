@@ -859,6 +859,14 @@ class StockTradingAPITester:
         self.test_duplicate_subscription_prevention()
         self.test_get_alert_stats()
         
+        # Auto-Trading features
+        print(f"\n🤖 Testing Auto-Trading Features...")
+        self.test_get_auto_trade_settings()
+        self.test_update_auto_trade_settings()
+        self.test_get_auto_trade_logs()
+        self.test_get_short_positions()
+        self.test_cover_short_position_no_position()
+        
         # Print summary
         print("\n" + "=" * 50)
         print(f"📊 Test Results: {self.tests_passed}/{self.tests_run} passed")
