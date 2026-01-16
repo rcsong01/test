@@ -353,8 +353,172 @@ async def get_or_create_balance() -> dict:
         doc = balance_obj.model_dump()
         doc['created_at'] = doc['created_at'].isoformat()
         await db.balance.insert_one(doc)
-        return {"cash_balance": balance_obj.cash_balance}
-    return {"cash_balance": balance.get("cash_balance", 100000.0)}
+        return doc
+    return balance
+
+async def get_auto_trade_settings() -> dict:
+    """Get auto-trade settings"""
+    balance = await db.balance.find_one({}, {"_id": 0})
+    if not balance:
+        balance = await get_or_create_balance()
+    return {
+        "enabled": balance.get("auto_trade_enabled", True),
+        "amount": balance.get("auto_trade_amount", 1000.0),
+        "min_confidence": balance.get("auto_trade_min_confidence", 80)
+    }
+
+async def execute_auto_trade(signal: dict):
+    """Execute automatic trade based on AI signal"""
+    settings = await get_auto_trade_settings()
+    
+    if not settings["enabled"]:
+        logger.info(f"Auto-trade disabled, skipping {signal['signal']} for {signal['symbol']}")
+        return None
+    
+    if signal["confidence"] < settings["min_confidence"]:
+        logger.info(f"Signal confidence {signal['confidence']}% below threshold {settings['min_confidence']}%, skipping")
+        return None
+    
+    symbol = signal["symbol"]
+    trade_amount = settings["amount"]
+    
+    # Get current stock price
+    quote = await get_stock_quote_from_api(symbol)
+    current_price = quote["price"]
+    
+    if current_price <= 0:
+        logger.error(f"Invalid price for {symbol}, skipping auto-trade")
+        return None
+    
+    shares = round(trade_amount / current_price, 4)
+    total = shares * current_price
+    
+    balance_doc = await db.balance.find_one({}, {"_id": 0})
+    cash_balance = balance_doc.get("cash_balance", 100000.0)
+    
+    action = None
+    
+    if signal["signal"] == "BUY":
+        # Check if we have enough cash
+        if total > cash_balance:
+            logger.info(f"Insufficient funds for auto-buy: need ${total:.2f}, have ${cash_balance:.2f}")
+            return None
+        
+        action = "BUY"
+        
+        # Deduct cash
+        new_cash = cash_balance - total
+        await db.balance.update_one({}, {"$set": {"cash_balance": new_cash}})
+        
+        # Add to holdings
+        existing = await db.holdings.find_one({"symbol": symbol}, {"_id": 0})
+        if existing:
+            new_shares = existing['shares'] + shares
+            new_avg_cost = ((existing['shares'] * existing['avg_cost']) + total) / new_shares
+            await db.holdings.update_one(
+                {"symbol": symbol},
+                {"$set": {"shares": new_shares, "avg_cost": new_avg_cost, "updated_at": datetime.now(timezone.utc).isoformat()}}
+            )
+        else:
+            holding = PortfolioHolding(symbol=symbol, shares=shares, avg_cost=current_price)
+            doc = holding.model_dump()
+            doc['created_at'] = doc['created_at'].isoformat()
+            doc['updated_at'] = doc['updated_at'].isoformat()
+            await db.holdings.insert_one(doc)
+        
+        logger.info(f"🤖 AUTO-BUY: {shares} shares of {symbol} @ ${current_price:.2f} = ${total:.2f}")
+    
+    elif signal["signal"] == "SELL":
+        # Check if we have holdings to sell
+        existing = await db.holdings.find_one({"symbol": symbol}, {"_id": 0})
+        
+        if existing and existing['shares'] > 0:
+            # Sell existing holdings
+            action = "SELL"
+            sell_shares = min(shares, existing['shares'])
+            sell_total = sell_shares * current_price
+            
+            # Add cash
+            new_cash = cash_balance + sell_total
+            await db.balance.update_one({}, {"$set": {"cash_balance": new_cash}})
+            
+            # Update holdings
+            new_shares = existing['shares'] - sell_shares
+            if new_shares <= 0:
+                await db.holdings.delete_one({"symbol": symbol})
+            else:
+                await db.holdings.update_one(
+                    {"symbol": symbol},
+                    {"$set": {"shares": new_shares, "updated_at": datetime.now(timezone.utc).isoformat()}}
+                )
+            
+            shares = sell_shares
+            total = sell_total
+            logger.info(f"🤖 AUTO-SELL: {shares} shares of {symbol} @ ${current_price:.2f} = ${total:.2f}")
+        else:
+            # No holdings - SHORT SELL
+            action = "SHORT"
+            
+            # Add cash from short sale (we receive money when shorting)
+            new_cash = cash_balance + total
+            await db.balance.update_one({}, {"$set": {"cash_balance": new_cash}})
+            
+            # Create or update short position
+            existing_short = await db.short_positions.find_one({"symbol": symbol}, {"_id": 0})
+            if existing_short:
+                new_shares = existing_short['shares'] + shares
+                new_entry_price = ((existing_short['shares'] * existing_short['entry_price']) + total) / new_shares
+                await db.short_positions.update_one(
+                    {"symbol": symbol},
+                    {"$set": {"shares": new_shares, "entry_price": new_entry_price, "updated_at": datetime.now(timezone.utc).isoformat()}}
+                )
+            else:
+                short_pos = ShortPosition(symbol=symbol, shares=shares, entry_price=current_price)
+                doc = short_pos.model_dump()
+                doc['created_at'] = doc['created_at'].isoformat()
+                doc['updated_at'] = doc['updated_at'].isoformat()
+                await db.short_positions.insert_one(doc)
+            
+            logger.info(f"🤖 AUTO-SHORT: {shares} shares of {symbol} @ ${current_price:.2f} = ${total:.2f}")
+    
+    if action:
+        # Record transaction
+        tx = Transaction(
+            symbol=symbol,
+            action=action,
+            shares=shares,
+            price=current_price,
+            total=total
+        )
+        tx_doc = tx.model_dump()
+        tx_doc['timestamp'] = tx_doc['timestamp'].isoformat()
+        await db.transactions.insert_one(tx_doc)
+        
+        # Log auto-trade
+        auto_log = AutoTradeLog(
+            signal_id=signal.get("id", ""),
+            symbol=symbol,
+            action=action,
+            shares=shares,
+            price=current_price,
+            total=total,
+            confidence=signal["confidence"],
+            news_title=signal.get("news_title", "")
+        )
+        log_doc = auto_log.model_dump()
+        log_doc['timestamp'] = log_doc['timestamp'].isoformat()
+        await db.auto_trade_logs.insert_one(log_doc)
+        
+        return {
+            "action": action,
+            "symbol": symbol,
+            "shares": shares,
+            "price": current_price,
+            "total": total,
+            "confidence": signal["confidence"]
+        }
+    
+    return None
 
 # ===== NEWS SCANNING FUNCTIONS =====
 
