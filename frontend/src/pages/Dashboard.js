@@ -1,0 +1,798 @@
+import { useState, useEffect, useCallback } from 'react';
+import { 
+  TrendingUp, 
+  TrendingDown, 
+  Activity, 
+  DollarSign, 
+  PieChart, 
+  Eye, 
+  Cpu,
+  Search,
+  Plus,
+  Minus,
+  RefreshCw,
+  ChevronRight,
+  BarChart3,
+  Wallet,
+  Star
+} from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
+import { Badge } from '../components/ui/badge';
+import { ScrollArea } from '../components/ui/scroll-area';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
+import api from '../lib/api';
+import { formatCurrency, formatPercent, formatLargeNumber, cn } from '../lib/utils';
+import { toast } from 'sonner';
+
+// Stock Card Component
+const StockCard = ({ stock, onClick, onAddWatchlist }) => {
+  const isPositive = stock.change >= 0;
+  
+  return (
+    <div 
+      className="p-4 border border-border bg-card hover:bg-secondary/30 cursor-pointer transition-colors duration-200 bento-item"
+      onClick={() => onClick(stock)}
+      data-testid={`stock-card-${stock.symbol}`}
+    >
+      <div className="flex justify-between items-start mb-2">
+        <div>
+          <h3 className="font-heading text-lg font-semibold tracking-tight uppercase">{stock.symbol}</h3>
+        </div>
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          className="h-6 w-6 p-0"
+          onClick={(e) => { e.stopPropagation(); onAddWatchlist(stock.symbol); }}
+          data-testid={`watchlist-btn-${stock.symbol}`}
+        >
+          <Star className="h-4 w-4" />
+        </Button>
+      </div>
+      <div className="font-mono text-2xl font-bold tracking-wide mb-1">
+        {formatCurrency(stock.price)}
+      </div>
+      <div className={cn(
+        "font-mono text-sm flex items-center gap-1",
+        isPositive ? "text-positive" : "text-negative"
+      )}>
+        {isPositive ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
+        <span>{formatCurrency(Math.abs(stock.change))}</span>
+        <span>({formatPercent(stock.change_percent)})</span>
+      </div>
+    </div>
+  );
+};
+
+// Portfolio Summary Card
+const PortfolioSummary = ({ portfolio }) => {
+  const isPositive = portfolio.total_gain_loss >= 0;
+  
+  return (
+    <Card className="bg-card border-border" data-testid="portfolio-summary">
+      <CardHeader className="pb-2">
+        <CardTitle className="font-heading text-lg uppercase tracking-tight flex items-center gap-2">
+          <Wallet className="h-5 w-5 text-primary" />
+          Portfolio Value
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="font-mono text-4xl font-bold tracking-wide mb-2">
+          {formatCurrency(portfolio.total_value + portfolio.cash_balance)}
+        </div>
+        <div className="grid grid-cols-3 gap-4 mt-4">
+          <div>
+            <div className="text-muted-foreground text-xs uppercase tracking-wider mb-1">Invested</div>
+            <div className="font-mono text-lg">{formatCurrency(portfolio.total_value)}</div>
+          </div>
+          <div>
+            <div className="text-muted-foreground text-xs uppercase tracking-wider mb-1">Cash</div>
+            <div className="font-mono text-lg">{formatCurrency(portfolio.cash_balance)}</div>
+          </div>
+          <div>
+            <div className="text-muted-foreground text-xs uppercase tracking-wider mb-1">P&L</div>
+            <div className={cn("font-mono text-lg", isPositive ? "text-positive" : "text-negative")}>
+              {formatCurrency(portfolio.total_gain_loss)}
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
+// AI Recommendation Card
+const AIRecommendationCard = ({ recommendation }) => {
+  const getRecommendationColor = (rec) => {
+    switch (rec) {
+      case 'BUY': return 'bg-positive text-black';
+      case 'SELL': return 'bg-negative text-white';
+      default: return 'bg-accent text-white';
+    }
+  };
+  
+  return (
+    <div className="p-4 border border-border bg-card ai-glow" data-testid={`ai-rec-${recommendation.symbol}`}>
+      <div className="flex justify-between items-start mb-3">
+        <div>
+          <h3 className="font-heading text-xl font-semibold uppercase tracking-tight">{recommendation.symbol}</h3>
+        </div>
+        <Badge className={cn("font-mono uppercase", getRecommendationColor(recommendation.recommendation))}>
+          {recommendation.recommendation}
+        </Badge>
+      </div>
+      <div className="flex items-center gap-2 mb-3">
+        <div className="text-muted-foreground text-xs uppercase">Confidence</div>
+        <div className="flex-1 h-2 bg-secondary rounded-sm overflow-hidden">
+          <div 
+            className="h-full bg-primary transition-all duration-500"
+            style={{ width: `${recommendation.confidence}%` }}
+          />
+        </div>
+        <span className="font-mono text-sm">{recommendation.confidence}%</span>
+      </div>
+      <p className="text-sm text-muted-foreground mb-3">{recommendation.analysis}</p>
+      <div className="flex flex-wrap gap-1">
+        {recommendation.key_factors?.slice(0, 3).map((factor, i) => (
+          <Badge key={i} variant="outline" className="text-xs">
+            {factor}
+          </Badge>
+        ))}
+      </div>
+      {recommendation.target_price && (
+        <div className="mt-3 pt-3 border-t border-border flex gap-4">
+          <div>
+            <div className="text-muted-foreground text-xs uppercase">Target</div>
+            <div className="font-mono text-positive">{formatCurrency(recommendation.target_price)}</div>
+          </div>
+          {recommendation.stop_loss && (
+            <div>
+              <div className="text-muted-foreground text-xs uppercase">Stop Loss</div>
+              <div className="font-mono text-negative">{formatCurrency(recommendation.stop_loss)}</div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Trade Modal
+const TradeModal = ({ stock, onTrade, cashBalance }) => {
+  const [shares, setShares] = useState(1);
+  const [action, setAction] = useState('BUY');
+  const [isLoading, setIsLoading] = useState(false);
+  
+  const total = shares * stock.price;
+  
+  const handleTrade = async () => {
+    setIsLoading(true);
+    try {
+      await onTrade({
+        symbol: stock.symbol,
+        action,
+        shares,
+        price: stock.price
+      });
+      toast.success(`${action} order executed for ${shares} shares of ${stock.symbol}`);
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Trade failed');
+    }
+    setIsLoading(false);
+  };
+  
+  return (
+    <DialogContent className="bg-card border-border">
+      <DialogHeader>
+        <DialogTitle className="font-heading text-2xl uppercase tracking-tight">
+          Trade {stock.symbol}
+        </DialogTitle>
+      </DialogHeader>
+      <div className="space-y-4 py-4">
+        <div className="flex gap-2">
+          <Button 
+            className={cn("flex-1 font-mono uppercase", action === 'BUY' ? 'bg-positive text-black' : 'bg-secondary')}
+            onClick={() => setAction('BUY')}
+            data-testid="trade-buy-btn"
+          >
+            Buy
+          </Button>
+          <Button 
+            className={cn("flex-1 font-mono uppercase", action === 'SELL' ? 'bg-negative text-white' : 'bg-secondary')}
+            onClick={() => setAction('SELL')}
+            data-testid="trade-sell-btn"
+          >
+            Sell
+          </Button>
+        </div>
+        
+        <div>
+          <label className="text-xs uppercase text-muted-foreground tracking-wider">Current Price</label>
+          <div className="font-mono text-2xl">{formatCurrency(stock.price)}</div>
+        </div>
+        
+        <div>
+          <label className="text-xs uppercase text-muted-foreground tracking-wider">Shares</label>
+          <div className="flex items-center gap-2 mt-1">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => setShares(Math.max(1, shares - 1))}
+              data-testid="shares-minus"
+            >
+              <Minus className="h-4 w-4" />
+            </Button>
+            <Input 
+              type="number" 
+              value={shares} 
+              onChange={(e) => setShares(Math.max(1, parseInt(e.target.value) || 1))}
+              className="w-24 text-center font-mono"
+              data-testid="shares-input"
+            />
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => setShares(shares + 1)}
+              data-testid="shares-plus"
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+        
+        <div className="p-4 bg-secondary/50 border border-border">
+          <div className="flex justify-between mb-2">
+            <span className="text-muted-foreground">Total</span>
+            <span className="font-mono text-xl">{formatCurrency(total)}</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-muted-foreground">Available Cash</span>
+            <span className="font-mono">{formatCurrency(cashBalance)}</span>
+          </div>
+        </div>
+        
+        <Button 
+          className={cn(
+            "w-full font-mono uppercase tracking-wider btn-glow",
+            action === 'BUY' ? 'bg-positive text-black hover:bg-positive/90' : 'bg-negative text-white hover:bg-negative/90'
+          )}
+          onClick={handleTrade}
+          disabled={isLoading || (action === 'BUY' && total > cashBalance)}
+          data-testid="execute-trade-btn"
+        >
+          {isLoading ? <RefreshCw className="h-4 w-4 animate-spin" /> : `${action} ${shares} Shares`}
+        </Button>
+      </div>
+    </DialogContent>
+  );
+};
+
+// Stock Detail View
+const StockDetail = ({ symbol, onClose, onTrade, cashBalance }) => {
+  const [quote, setQuote] = useState(null);
+  const [history, setHistory] = useState([]);
+  const [analysis, setAnalysis] = useState(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  
+  const fetchData = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const [quoteRes, historyRes] = await Promise.all([
+        api.getStockQuote(symbol),
+        api.getStockHistory(symbol)
+      ]);
+      setQuote(quoteRes.data);
+      setHistory(historyRes.data.history);
+    } catch (error) {
+      toast.error('Failed to load stock data');
+    }
+    setIsLoading(false);
+  }, [symbol]);
+  
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+  
+  const handleAnalyze = async () => {
+    setIsAnalyzing(true);
+    try {
+      const res = await api.analyzeStock(symbol);
+      setAnalysis(res.data);
+      toast.success('AI analysis complete');
+    } catch (error) {
+      toast.error('Analysis failed');
+    }
+    setIsAnalyzing(false);
+  };
+  
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <RefreshCw className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+  
+  const isPositive = quote?.change >= 0;
+  
+  return (
+    <div className="space-y-6" data-testid="stock-detail">
+      <div className="flex justify-between items-start">
+        <div>
+          <h2 className="font-heading text-4xl font-bold uppercase tracking-tight">{symbol}</h2>
+          <div className="font-mono text-5xl font-bold tracking-wide mt-2">
+            {formatCurrency(quote?.price || 0)}
+          </div>
+          <div className={cn(
+            "font-mono text-lg flex items-center gap-2 mt-1",
+            isPositive ? "text-positive" : "text-negative"
+          )}>
+            {isPositive ? <TrendingUp className="h-5 w-5" /> : <TrendingDown className="h-5 w-5" />}
+            <span>{formatCurrency(Math.abs(quote?.change || 0))}</span>
+            <span>({formatPercent(quote?.change_percent || 0)})</span>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            onClick={handleAnalyze} 
+            disabled={isAnalyzing}
+            className="font-mono uppercase tracking-wider"
+            data-testid="analyze-btn"
+          >
+            {isAnalyzing ? <RefreshCw className="h-4 w-4 animate-spin mr-2" /> : <Cpu className="h-4 w-4 mr-2" />}
+            AI Analyze
+          </Button>
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button className="bg-primary text-black font-mono uppercase tracking-wider btn-glow" data-testid="trade-btn">
+                Trade
+              </Button>
+            </DialogTrigger>
+            {quote && <TradeModal stock={quote} onTrade={onTrade} cashBalance={cashBalance} />}
+          </Dialog>
+        </div>
+      </div>
+      
+      {/* Price Chart */}
+      <Card className="bg-card border-border chart-container">
+        <CardContent className="pt-6">
+          <ResponsiveContainer width="100%" height={300}>
+            <AreaChart data={history}>
+              <defs>
+                <linearGradient id="colorPrice" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#00E599" stopOpacity={0.3}/>
+                  <stop offset="95%" stopColor="#00E599" stopOpacity={0}/>
+                </linearGradient>
+              </defs>
+              <XAxis 
+                dataKey="date" 
+                tick={{ fill: '#888', fontSize: 10 }}
+                tickLine={false}
+                axisLine={{ stroke: '#262626' }}
+              />
+              <YAxis 
+                tick={{ fill: '#888', fontSize: 10 }}
+                tickLine={false}
+                axisLine={{ stroke: '#262626' }}
+                domain={['auto', 'auto']}
+                tickFormatter={(v) => `$${v}`}
+              />
+              <Tooltip 
+                contentStyle={{ 
+                  backgroundColor: '#0A0A0A', 
+                  border: '1px solid #262626',
+                  fontFamily: 'JetBrains Mono'
+                }}
+                labelStyle={{ color: '#888' }}
+              />
+              <Area 
+                type="monotone" 
+                dataKey="close" 
+                stroke="#00E599" 
+                fill="url(#colorPrice)"
+                strokeWidth={2}
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
+      
+      {/* Stock Stats */}
+      <div className="grid grid-cols-4 gap-4">
+        <div className="p-4 bg-card border border-border">
+          <div className="text-muted-foreground text-xs uppercase tracking-wider mb-1">Open</div>
+          <div className="font-mono text-lg">{formatCurrency(quote?.open || 0)}</div>
+        </div>
+        <div className="p-4 bg-card border border-border">
+          <div className="text-muted-foreground text-xs uppercase tracking-wider mb-1">High</div>
+          <div className="font-mono text-lg text-positive">{formatCurrency(quote?.high || 0)}</div>
+        </div>
+        <div className="p-4 bg-card border border-border">
+          <div className="text-muted-foreground text-xs uppercase tracking-wider mb-1">Low</div>
+          <div className="font-mono text-lg text-negative">{formatCurrency(quote?.low || 0)}</div>
+        </div>
+        <div className="p-4 bg-card border border-border">
+          <div className="text-muted-foreground text-xs uppercase tracking-wider mb-1">Volume</div>
+          <div className="font-mono text-lg">{formatLargeNumber(quote?.volume || 0)}</div>
+        </div>
+      </div>
+      
+      {/* AI Analysis */}
+      {analysis && (
+        <div className="tracing-beam">
+          <AIRecommendationCard recommendation={analysis} />
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Main Dashboard Component
+export default function Dashboard() {
+  const [trendingStocks, setTrendingStocks] = useState([]);
+  const [portfolio, setPortfolio] = useState({ total_value: 0, total_cost: 0, total_gain_loss: 0, total_gain_loss_percent: 0, cash_balance: 100000, holdings: [] });
+  const [watchlist, setWatchlist] = useState([]);
+  const [recommendations, setRecommendations] = useState([]);
+  const [transactions, setTransactions] = useState([]);
+  const [selectedStock, setSelectedStock] = useState(null);
+  const [searchSymbol, setSearchSymbol] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  
+  const fetchDashboardData = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const [trendingRes, portfolioRes, watchlistRes, recRes, txRes] = await Promise.all([
+        api.getTrendingStocks(),
+        api.getPortfolio(),
+        api.getWatchlist(),
+        api.getRecommendations(),
+        api.getTransactions()
+      ]);
+      setTrendingStocks(trendingRes.data);
+      setPortfolio(portfolioRes.data);
+      setWatchlist(watchlistRes.data);
+      setRecommendations(recRes.data);
+      setTransactions(txRes.data);
+    } catch (error) {
+      console.error('Dashboard load error:', error);
+    }
+    setIsLoading(false);
+  }, []);
+  
+  useEffect(() => {
+    fetchDashboardData();
+  }, [fetchDashboardData]);
+  
+  const handleTrade = async (tradeData) => {
+    await api.executeTrade(tradeData);
+    fetchDashboardData();
+  };
+  
+  const handleAddWatchlist = async (symbol) => {
+    try {
+      await api.addToWatchlist(symbol);
+      toast.success(`${symbol} added to watchlist`);
+      fetchDashboardData();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Failed to add to watchlist');
+    }
+  };
+  
+  const handleRemoveWatchlist = async (symbol) => {
+    try {
+      await api.removeFromWatchlist(symbol);
+      toast.success(`${symbol} removed from watchlist`);
+      fetchDashboardData();
+    } catch (error) {
+      toast.error('Failed to remove from watchlist');
+    }
+  };
+  
+  const handleSearch = async (e) => {
+    e.preventDefault();
+    if (searchSymbol.trim()) {
+      setSelectedStock(searchSymbol.toUpperCase().trim());
+    }
+  };
+  
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <RefreshCw className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
+          <p className="font-mono text-muted-foreground uppercase tracking-wider">Loading Market Data...</p>
+        </div>
+      </div>
+    );
+  }
+  
+  return (
+    <div className="min-h-screen" data-testid="dashboard">
+      {/* Header */}
+      <header className="glass-header sticky top-0 z-50 px-6 py-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Activity className="h-8 w-8 text-primary" />
+            <h1 className="font-heading text-2xl font-bold uppercase tracking-tight">MarketGenius</h1>
+            <Badge className="bg-primary text-black font-mono text-xs">AI</Badge>
+          </div>
+          
+          <form onSubmit={handleSearch} className="flex gap-2">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input 
+                placeholder="Search symbol..." 
+                className="pl-10 w-48 bg-secondary border-border font-mono uppercase"
+                value={searchSymbol}
+                onChange={(e) => setSearchSymbol(e.target.value)}
+                data-testid="search-input"
+              />
+            </div>
+            <Button type="submit" className="bg-primary text-black font-mono uppercase" data-testid="search-btn">
+              Search
+            </Button>
+          </form>
+          
+          <Button 
+            variant="outline" 
+            onClick={fetchDashboardData}
+            className="font-mono uppercase tracking-wider"
+            data-testid="refresh-btn"
+          >
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Refresh
+          </Button>
+        </div>
+      </header>
+      
+      <main className="p-6">
+        {selectedStock ? (
+          <div>
+            <Button 
+              variant="ghost" 
+              onClick={() => setSelectedStock(null)} 
+              className="mb-4 font-mono uppercase"
+              data-testid="back-btn"
+            >
+              <ChevronRight className="h-4 w-4 rotate-180 mr-2" />
+              Back to Dashboard
+            </Button>
+            <StockDetail 
+              symbol={selectedStock} 
+              onClose={() => setSelectedStock(null)}
+              onTrade={handleTrade}
+              cashBalance={portfolio.cash_balance}
+            />
+          </div>
+        ) : (
+          <div className="grid grid-cols-12 gap-6">
+            {/* Left Column - Portfolio & Holdings */}
+            <div className="col-span-12 lg:col-span-4 space-y-6">
+              <PortfolioSummary portfolio={portfolio} />
+              
+              {/* Holdings */}
+              <Card className="bg-card border-border">
+                <CardHeader className="pb-2">
+                  <CardTitle className="font-heading text-lg uppercase tracking-tight flex items-center gap-2">
+                    <PieChart className="h-5 w-5 text-primary" />
+                    Holdings
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ScrollArea className="h-64">
+                    {portfolio.holdings.length === 0 ? (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <DollarSign className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                        <p className="font-mono text-sm">No holdings yet</p>
+                        <p className="text-xs">Start trading to build your portfolio</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {portfolio.holdings.map((holding) => (
+                          <div 
+                            key={holding.symbol}
+                            className="p-3 bg-secondary/30 border border-border cursor-pointer hover:bg-secondary/50 transition-colors"
+                            onClick={() => setSelectedStock(holding.symbol)}
+                            data-testid={`holding-${holding.symbol}`}
+                          >
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <div className="font-heading font-semibold uppercase">{holding.symbol}</div>
+                                <div className="font-mono text-xs text-muted-foreground">
+                                  {holding.shares} shares @ {formatCurrency(holding.avg_cost)}
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <div className="font-mono">{formatCurrency(holding.market_value)}</div>
+                                <div className={cn(
+                                  "font-mono text-xs",
+                                  holding.gain_loss >= 0 ? "text-positive" : "text-negative"
+                                )}>
+                                  {formatPercent(holding.gain_loss_percent)}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </ScrollArea>
+                </CardContent>
+              </Card>
+            </div>
+            
+            {/* Center Column - Market & AI */}
+            <div className="col-span-12 lg:col-span-5 space-y-6">
+              {/* Trending Stocks */}
+              <Card className="bg-card border-border">
+                <CardHeader className="pb-2">
+                  <CardTitle className="font-heading text-lg uppercase tracking-tight flex items-center gap-2">
+                    <BarChart3 className="h-5 w-5 text-primary" />
+                    Market Overview
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 gap-0">
+                    {trendingStocks.slice(0, 8).map((stock) => (
+                      <StockCard 
+                        key={stock.symbol}
+                        stock={stock}
+                        onClick={(s) => setSelectedStock(s.symbol)}
+                        onAddWatchlist={handleAddWatchlist}
+                      />
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+              
+              {/* AI Recommendations */}
+              <Card className="bg-card border-border">
+                <CardHeader className="pb-2">
+                  <CardTitle className="font-heading text-lg uppercase tracking-tight flex items-center gap-2">
+                    <Cpu className="h-5 w-5 text-primary" />
+                    AI Recommendations
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {recommendations.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <Cpu className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                      <p className="font-mono text-sm">No recommendations yet</p>
+                      <p className="text-xs">Analyze a stock to get AI insights</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {recommendations.slice(0, 3).map((rec) => (
+                        <div 
+                          key={rec.id} 
+                          className="cursor-pointer"
+                          onClick={() => setSelectedStock(rec.symbol)}
+                        >
+                          <AIRecommendationCard recommendation={rec} />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+            
+            {/* Right Column - Watchlist & Transactions */}
+            <div className="col-span-12 lg:col-span-3 space-y-6">
+              {/* Watchlist */}
+              <Card className="bg-card border-border">
+                <CardHeader className="pb-2">
+                  <CardTitle className="font-heading text-lg uppercase tracking-tight flex items-center gap-2">
+                    <Eye className="h-5 w-5 text-primary" />
+                    Watchlist
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ScrollArea className="h-48">
+                    {watchlist.length === 0 ? (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <Star className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                        <p className="font-mono text-sm">Watchlist empty</p>
+                        <p className="text-xs">Click star on stocks to track</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {watchlist.map((item) => (
+                          <div 
+                            key={item.symbol}
+                            className="p-3 bg-secondary/30 border border-border flex justify-between items-center cursor-pointer hover:bg-secondary/50"
+                            onClick={() => setSelectedStock(item.symbol)}
+                            data-testid={`watchlist-item-${item.symbol}`}
+                          >
+                            <div>
+                              <div className="font-heading font-semibold uppercase">{item.symbol}</div>
+                              <div className="font-mono">{formatCurrency(item.price)}</div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className={cn(
+                                "font-mono text-sm",
+                                item.change >= 0 ? "text-positive" : "text-negative"
+                              )}>
+                                {formatPercent(item.change_percent)}
+                              </span>
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                className="h-6 w-6 p-0 text-destructive"
+                                onClick={(e) => { e.stopPropagation(); handleRemoveWatchlist(item.symbol); }}
+                                data-testid={`remove-watchlist-${item.symbol}`}
+                              >
+                                <Minus className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </ScrollArea>
+                </CardContent>
+              </Card>
+              
+              {/* Recent Transactions */}
+              <Card className="bg-card border-border">
+                <CardHeader className="pb-2">
+                  <CardTitle className="font-heading text-lg uppercase tracking-tight flex items-center gap-2">
+                    <Activity className="h-5 w-5 text-primary" />
+                    Recent Trades
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ScrollArea className="h-64">
+                    {transactions.length === 0 ? (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <Activity className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                        <p className="font-mono text-sm">No transactions</p>
+                        <p className="text-xs">Your trades will appear here</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {transactions.slice(0, 10).map((tx) => (
+                          <div 
+                            key={tx.id}
+                            className="p-3 bg-secondary/30 border border-border data-row"
+                            data-testid={`transaction-${tx.id}`}
+                          >
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <Badge className={cn(
+                                  "font-mono text-xs mb-1",
+                                  tx.action === 'BUY' ? 'bg-positive text-black' : 'bg-negative text-white'
+                                )}>
+                                  {tx.action}
+                                </Badge>
+                                <div className="font-heading font-semibold uppercase">{tx.symbol}</div>
+                                <div className="font-mono text-xs text-muted-foreground">
+                                  {tx.shares} @ {formatCurrency(tx.price)}
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <div className="font-mono">{formatCurrency(tx.total)}</div>
+                                <div className="text-xs text-muted-foreground">
+                                  {new Date(tx.timestamp).toLocaleDateString()}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </ScrollArea>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        )}
+      </main>
+    </div>
+  );
+}
