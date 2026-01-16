@@ -293,6 +293,215 @@ async def get_or_create_balance() -> dict:
         return {"cash_balance": balance_obj.cash_balance}
     return {"cash_balance": balance.get("cash_balance", 100000.0)}
 
+# ===== NEWS SCANNING FUNCTIONS =====
+
+def extract_company_from_text(text: str) -> List[dict]:
+    """Extract company symbols and names from news text"""
+    found_companies = []
+    text_lower = text.lower()
+    
+    for symbol, name in TRACKED_COMPANIES.items():
+        # Check for symbol (with word boundaries)
+        if re.search(rf'\b{symbol}\b', text, re.IGNORECASE):
+            found_companies.append({"symbol": symbol, "name": name})
+        # Check for company name
+        elif name.lower().split()[0] in text_lower:  # Check first word of company name
+            found_companies.append({"symbol": symbol, "name": name})
+    
+    return found_companies
+
+async def fetch_rss_news(source: dict) -> List[dict]:
+    """Fetch news from RSS feed"""
+    articles = []
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            response = await client.get(source["url"], follow_redirects=True)
+            if response.status_code == 200:
+                feed = feedparser.parse(response.text)
+                for entry in feed.entries[:20]:  # Limit to 20 articles per source
+                    title = entry.get("title", "")
+                    summary = entry.get("summary", entry.get("description", ""))
+                    # Clean HTML from summary
+                    if summary:
+                        soup = BeautifulSoup(summary, "html.parser")
+                        summary = soup.get_text()[:500]
+                    
+                    # Parse published date
+                    published = entry.get("published_parsed") or entry.get("updated_parsed")
+                    if published:
+                        published_dt = datetime(*published[:6], tzinfo=timezone.utc)
+                    else:
+                        published_dt = datetime.now(timezone.utc)
+                    
+                    articles.append({
+                        "title": title,
+                        "summary": summary,
+                        "source": source["name"],
+                        "url": entry.get("link", ""),
+                        "published_at": published_dt
+                    })
+    except Exception as e:
+        logger.error(f"Error fetching RSS from {source['name']}: {e}")
+    
+    return articles
+
+async def fetch_all_news() -> List[dict]:
+    """Fetch news from all sources"""
+    all_articles = []
+    
+    # Fetch from RSS feeds concurrently
+    tasks = [fetch_rss_news(source) for source in NEWS_SOURCES]
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+    
+    for result in results:
+        if isinstance(result, list):
+            all_articles.extend(result)
+    
+    return all_articles
+
+async def analyze_news_with_ai(article: dict, company: dict) -> dict:
+    """Analyze a news article with AI to generate trading signal"""
+    chat = LlmChat(
+        api_key=EMERGENT_LLM_KEY,
+        session_id=f"news-analysis-{uuid.uuid4()}",
+        system_message="""You are an expert financial analyst. Analyze the given news article about a company and determine if it suggests a BUY, SELL, or HOLD signal for the stock.
+
+Consider:
+- Is this news positive, negative, or neutral for the company?
+- How significant is this news for the stock price?
+- Is this breaking news or already priced in?
+- What are the short-term implications?
+
+Respond ONLY in this exact JSON format:
+{
+    "signal": "BUY" or "SELL" or "HOLD",
+    "confidence": 0-100,
+    "reasoning": "Brief 1-2 sentence explanation"
+}"""
+    ).with_model("openai", "gpt-5.2")
+    
+    prompt = f"""Analyze this news for {company['name']} ({company['symbol']}):
+
+HEADLINE: {article['title']}
+
+SUMMARY: {article['summary']}
+
+SOURCE: {article['source']}
+
+Based on this news, what is your trading signal? Respond in JSON format."""
+
+    try:
+        response = await chat.send_message(UserMessage(text=prompt))
+        
+        # Parse JSON response
+        import json
+        response_text = response.strip()
+        if response_text.startswith("```json"):
+            response_text = response_text[7:]
+        if response_text.startswith("```"):
+            response_text = response_text[3:]
+        if response_text.endswith("```"):
+            response_text = response_text[:-3]
+        
+        analysis = json.loads(response_text.strip())
+        return {
+            "signal": analysis.get("signal", "HOLD"),
+            "confidence": analysis.get("confidence", 50),
+            "reasoning": analysis.get("reasoning", "Unable to analyze")
+        }
+    except Exception as e:
+        logger.error(f"AI analysis error: {e}")
+        return {
+            "signal": "HOLD",
+            "confidence": 30,
+            "reasoning": "Analysis pending - unable to process"
+        }
+
+async def scan_and_analyze_news():
+    """Main function to scan news and generate signals"""
+    logger.info("Starting news scan...")
+    
+    # Fetch all news
+    articles = await fetch_all_news()
+    logger.info(f"Fetched {len(articles)} articles from news sources")
+    
+    new_signals = []
+    
+    for article in articles:
+        # Check if we already processed this article
+        existing = await db.news_articles.find_one({"url": article["url"]})
+        if existing:
+            continue
+        
+        # Find companies mentioned in the article
+        full_text = f"{article['title']} {article['summary']}"
+        companies = extract_company_from_text(full_text)
+        
+        if not companies:
+            continue
+        
+        # Analyze for each company mentioned
+        for company in companies[:2]:  # Limit to 2 companies per article
+            # Analyze with AI
+            analysis = await analyze_news_with_ai(article, company)
+            
+            # Create news article record
+            news_article = NewsArticle(
+                title=article["title"],
+                summary=article["summary"],
+                source=article["source"],
+                url=article["url"],
+                symbol=company["symbol"],
+                company_name=company["name"],
+                published_at=article["published_at"],
+                signal=analysis["signal"],
+                signal_confidence=analysis["confidence"],
+                signal_reasoning=analysis["reasoning"],
+                analyzed=True
+            )
+            
+            # Save to database
+            doc = news_article.model_dump()
+            doc['published_at'] = doc['published_at'].isoformat()
+            doc['fetched_at'] = doc['fetched_at'].isoformat()
+            await db.news_articles.insert_one(doc)
+            
+            # Create signal record if confidence is high enough
+            if analysis["confidence"] >= 60 and analysis["signal"] in ["BUY", "SELL"]:
+                signal = NewsSignal(
+                    news_id=news_article.id,
+                    symbol=company["symbol"],
+                    company_name=company["name"],
+                    signal=analysis["signal"],
+                    confidence=analysis["confidence"],
+                    reasoning=analysis["reasoning"],
+                    news_title=article["title"],
+                    news_source=article["source"],
+                    news_url=article["url"]
+                )
+                signal_doc = signal.model_dump()
+                signal_doc['created_at'] = signal_doc['created_at'].isoformat()
+                await db.news_signals.insert_one(signal_doc)
+                new_signals.append(signal_doc)
+                
+                logger.info(f"New {analysis['signal']} signal for {company['symbol']}: {article['title'][:50]}...")
+    
+    logger.info(f"News scan complete. Generated {len(new_signals)} new signals.")
+    return new_signals
+
+# Background task to periodically scan news
+news_scan_running = False
+
+async def periodic_news_scan():
+    """Run news scan every 15 minutes"""
+    global news_scan_running
+    while news_scan_running:
+        try:
+            await scan_and_analyze_news()
+        except Exception as e:
+            logger.error(f"Periodic news scan error: {e}")
+        await asyncio.sleep(900)  # 15 minutes
+
 # ===== API ROUTES =====
 
 @api_router.get("/")
