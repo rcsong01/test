@@ -717,6 +717,12 @@ async def scan_and_analyze_news():
                 
                 logger.info(f"New {analysis['signal']} signal for {company['symbol']}: {article['title'][:50]}...")
                 
+                # Execute auto-trade if confidence >= 80%
+                if analysis["confidence"] >= 80:
+                    trade_result = await execute_auto_trade(signal_doc)
+                    if trade_result:
+                        logger.info(f"🤖 Auto-trade executed: {trade_result['action']} {trade_result['symbol']}")
+                
                 # Send alerts to subscribers
                 await send_signal_alerts(signal_doc)
     
