@@ -19,6 +19,7 @@ class StockTradingAPITester:
         self.tests_passed = 0
         self.failed_tests = []
         self.test_results = {}
+        self.test_email = f"test_{int(time.time())}@example.com"
 
     def log_test(self, name: str, success: bool, details: str = ""):
         """Log test result"""
