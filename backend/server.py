@@ -129,7 +129,33 @@ class UserBalance(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     cash_balance: float = 100000.0  # Starting with $100k paper money
+    auto_trade_enabled: bool = True  # Enable auto-trading by default
+    auto_trade_amount: float = 1000.0  # Amount to trade per signal
+    auto_trade_min_confidence: int = 80  # Minimum confidence to trigger auto-trade
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class ShortPosition(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    symbol: str
+    shares: float
+    entry_price: float  # Price when shorted
+    current_price: float = 0.0
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class AutoTradeLog(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    signal_id: str
+    symbol: str
+    action: str  # BUY, SELL, SHORT
+    shares: float
+    price: float
+    total: float
+    confidence: int
+    news_title: str
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class NewsArticle(BaseModel):
     model_config = ConfigDict(extra="ignore")
