@@ -681,6 +681,15 @@ export default function Dashboard() {
           </form>
           
           <div className="flex gap-2">
+            <SignalAlertsModal>
+              <Button 
+                className="bg-primary text-black font-mono uppercase tracking-wider btn-glow"
+                data-testid="signal-alerts-btn"
+              >
+                <Bell className="h-4 w-4 mr-2" />
+                Alerts
+              </Button>
+            </SignalAlertsModal>
             <Button 
               variant="outline" 
               onClick={handleScanNews}
