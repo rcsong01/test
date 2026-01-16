@@ -800,6 +800,67 @@ async def get_balance():
     balance = await get_or_create_balance()
     return balance
 
+# News Routes
+@api_router.get("/news/signals")
+async def get_news_signals(limit: int = 20):
+    """Get latest news-based trading signals"""
+    signals = await db.news_signals.find({}, {"_id": 0}).sort("created_at", -1).to_list(limit)
+    return signals
+
+@api_router.get("/news/signals/{symbol}")
+async def get_news_signals_by_symbol(symbol: str, limit: int = 10):
+    """Get news signals for a specific stock"""
+    signals = await db.news_signals.find(
+        {"symbol": symbol.upper()}, 
+        {"_id": 0}
+    ).sort("created_at", -1).to_list(limit)
+    return signals
+
+@api_router.get("/news/articles")
+async def get_news_articles(limit: int = 50):
+    """Get latest news articles with analysis"""
+    articles = await db.news_articles.find({}, {"_id": 0}).sort("fetched_at", -1).to_list(limit)
+    return articles
+
+@api_router.get("/news/articles/{symbol}")
+async def get_news_articles_by_symbol(symbol: str, limit: int = 20):
+    """Get news articles for a specific stock"""
+    articles = await db.news_articles.find(
+        {"symbol": symbol.upper()},
+        {"_id": 0}
+    ).sort("fetched_at", -1).to_list(limit)
+    return articles
+
+@api_router.post("/news/scan")
+async def trigger_news_scan(background_tasks: BackgroundTasks):
+    """Manually trigger a news scan"""
+    background_tasks.add_task(scan_and_analyze_news)
+    return {"message": "News scan started", "status": "processing"}
+
+@api_router.get("/news/stats")
+async def get_news_stats():
+    """Get news scanning statistics"""
+    total_articles = await db.news_articles.count_documents({})
+    total_signals = await db.news_signals.count_documents({})
+    buy_signals = await db.news_signals.count_documents({"signal": "BUY"})
+    sell_signals = await db.news_signals.count_documents({"signal": "SELL"})
+    
+    # Get signals by company
+    pipeline = [
+        {"$group": {"_id": "$symbol", "count": {"$sum": 1}}},
+        {"$sort": {"count": -1}},
+        {"$limit": 10}
+    ]
+    signals_by_company = await db.news_signals.aggregate(pipeline).to_list(10)
+    
+    return {
+        "total_articles_analyzed": total_articles,
+        "total_signals_generated": total_signals,
+        "buy_signals": buy_signals,
+        "sell_signals": sell_signals,
+        "top_companies": signals_by_company
+    }
+
 # Include the router in the main app
 app.include_router(api_router)
 
@@ -811,6 +872,24 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.on_event("startup")
+async def startup_event():
+    """Start background news scanning on startup"""
+    global news_scan_running
+    news_scan_running = True
+    # Run initial scan after a short delay
+    asyncio.create_task(initial_news_scan())
+
+async def initial_news_scan():
+    """Run initial news scan after startup"""
+    await asyncio.sleep(5)  # Wait for app to be fully ready
+    logger.info("Running initial news scan...")
+    await scan_and_analyze_news()
+    # Start periodic scanning
+    asyncio.create_task(periodic_news_scan())
+
 @app.on_event("shutdown")
 async def shutdown_db_client():
+    global news_scan_running
+    news_scan_running = False
     client.close()
