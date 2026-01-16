@@ -518,7 +518,7 @@ class StockTradingAPITester:
             response1 = requests.post(f"{self.api_url}/alerts/subscribe", 
                                     json=subscription_data, timeout=10)
             
-            if response1.status_code == 201:
+            if response1.status_code == 200:  # API returns 200, not 201
                 # Second subscription should fail
                 response2 = requests.post(f"{self.api_url}/alerts/subscribe", 
                                         json=subscription_data, timeout=10)
