@@ -205,6 +205,100 @@ class StockTradingAPITester:
             self.log_test("AI Recommendations", False, str(e))
             return False
 
+    def test_news_signals(self):
+        """Test news signals endpoint"""
+        try:
+            response = requests.get(f"{self.api_url}/news/signals?limit=10", timeout=15)
+            success = response.status_code == 200
+            if success:
+                data = response.json()
+                self.log_test("News Signals", True, f"Found {len(data)} news signals")
+                
+                # Check signal structure if any exist
+                if len(data) > 0:
+                    signal = data[0]
+                    required_fields = ['symbol', 'signal', 'confidence', 'news_title', 'news_source']
+                    has_fields = all(field in signal for field in required_fields)
+                    valid_signal = signal.get('signal') in ['BUY', 'SELL', 'HOLD']
+                    if has_fields and valid_signal:
+                        self.log_test("News Signal Structure", True, f"Signal: {signal.get('signal')}, Confidence: {signal.get('confidence')}%")
+                    else:
+                        self.log_test("News Signal Structure", False, "Missing required fields or invalid signal")
+                
+                return True
+            else:
+                self.log_test("News Signals", False, f"Status: {response.status_code}")
+                return False
+        except Exception as e:
+            self.log_test("News Signals", False, str(e))
+            return False
+
+    def test_news_signals_by_symbol(self, symbol="AAPL"):
+        """Test news signals for specific symbol"""
+        try:
+            response = requests.get(f"{self.api_url}/news/signals/{symbol}", timeout=10)
+            success = response.status_code == 200
+            if success:
+                data = response.json()
+                self.log_test(f"News Signals ({symbol})", True, f"Found {len(data)} signals for {symbol}")
+            else:
+                self.log_test(f"News Signals ({symbol})", False, f"Status: {response.status_code}")
+            return success
+        except Exception as e:
+            self.log_test(f"News Signals ({symbol})", False, str(e))
+            return False
+
+    def test_news_scan_trigger(self):
+        """Test manual news scan trigger"""
+        try:
+            response = requests.post(f"{self.api_url}/news/scan", timeout=15)
+            success = response.status_code == 200
+            if success:
+                data = response.json()
+                has_message = 'message' in data and 'scan' in data['message'].lower()
+                self.log_test("News Scan Trigger", has_message, f"Response: {data.get('message', 'N/A')}")
+                return has_message
+            else:
+                self.log_test("News Scan Trigger", False, f"Status: {response.status_code}")
+                return False
+        except Exception as e:
+            self.log_test("News Scan Trigger", False, str(e))
+            return False
+
+    def test_news_stats(self):
+        """Test news statistics endpoint"""
+        try:
+            response = requests.get(f"{self.api_url}/news/stats", timeout=10)
+            success = response.status_code == 200
+            if success:
+                data = response.json()
+                required_fields = ['total_articles_analyzed', 'total_signals_generated', 'buy_signals', 'sell_signals']
+                has_fields = all(field in data for field in required_fields)
+                self.log_test("News Stats", has_fields, 
+                            f"Articles: {data.get('total_articles_analyzed', 0)}, Signals: {data.get('total_signals_generated', 0)}")
+                return has_fields
+            else:
+                self.log_test("News Stats", False, f"Status: {response.status_code}")
+                return False
+        except Exception as e:
+            self.log_test("News Stats", False, str(e))
+            return False
+
+    def test_news_articles(self):
+        """Test news articles endpoint"""
+        try:
+            response = requests.get(f"{self.api_url}/news/articles?limit=5", timeout=10)
+            success = response.status_code == 200
+            if success:
+                data = response.json()
+                self.log_test("News Articles", True, f"Found {len(data)} news articles")
+            else:
+                self.log_test("News Articles", False, f"Status: {response.status_code}")
+            return success
+        except Exception as e:
+            self.log_test("News Articles", False, str(e))
+            return False
+
     def test_trading(self):
         """Test paper trading functionality"""
         try:
