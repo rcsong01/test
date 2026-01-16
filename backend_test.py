@@ -655,6 +655,156 @@ class StockTradingAPITester:
             self.log_test("Duplicate Subscription Prevention", False, str(e))
             return False
 
+    # ===== AUTO-TRADING TESTS =====
+    
+    def test_get_auto_trade_settings(self):
+        """Test GET /api/auto-trade/settings"""
+        try:
+            response = requests.get(f"{self.api_url}/auto-trade/settings", timeout=10)
+            success = response.status_code == 200
+            
+            if success:
+                data = response.json()
+                required_fields = ['enabled', 'amount', 'min_confidence']
+                has_fields = all(field in data for field in required_fields)
+                
+                # Check default values
+                default_values = (
+                    isinstance(data.get('enabled'), bool) and
+                    isinstance(data.get('amount'), (int, float)) and
+                    isinstance(data.get('min_confidence'), int) and
+                    100 <= data.get('amount', 0) <= 10000 and
+                    60 <= data.get('min_confidence', 0) <= 95
+                )
+                
+                overall_success = has_fields and default_values
+                self.log_test("Auto-Trade Settings GET", overall_success, 
+                            f"Enabled: {data.get('enabled')}, Amount: ${data.get('amount')}, Min Confidence: {data.get('min_confidence')}%")
+                return overall_success
+            else:
+                self.log_test("Auto-Trade Settings GET", False, f"Status: {response.status_code}")
+                return False
+        except Exception as e:
+            self.log_test("Auto-Trade Settings GET", False, str(e))
+            return False
+
+    def test_update_auto_trade_settings(self):
+        """Test PUT /api/auto-trade/settings"""
+        try:
+            # Test updating enabled status
+            response1 = requests.put(f"{self.api_url}/auto-trade/settings?enabled=false", timeout=10)
+            if response1.status_code != 200:
+                self.log_test("Auto-Trade Settings UPDATE (enabled)", False, f"Status: {response1.status_code}")
+                return False
+            
+            data1 = response1.json()
+            enabled_updated = data1.get('enabled') == False
+            
+            # Test updating amount
+            response2 = requests.put(f"{self.api_url}/auto-trade/settings?amount=2000", timeout=10)
+            if response2.status_code != 200:
+                self.log_test("Auto-Trade Settings UPDATE (amount)", False, f"Status: {response2.status_code}")
+                return False
+            
+            data2 = response2.json()
+            amount_updated = data2.get('amount') == 2000.0
+            
+            # Test updating min_confidence
+            response3 = requests.put(f"{self.api_url}/auto-trade/settings?min_confidence=85", timeout=10)
+            if response3.status_code != 200:
+                self.log_test("Auto-Trade Settings UPDATE (confidence)", False, f"Status: {response3.status_code}")
+                return False
+            
+            data3 = response3.json()
+            confidence_updated = data3.get('min_confidence') == 85
+            
+            # Reset to defaults
+            requests.put(f"{self.api_url}/auto-trade/settings?enabled=true&amount=1000&min_confidence=80", timeout=10)
+            
+            overall_success = enabled_updated and amount_updated and confidence_updated
+            self.log_test("Auto-Trade Settings UPDATE", overall_success, 
+                        f"Enabled: {enabled_updated}, Amount: {amount_updated}, Confidence: {confidence_updated}")
+            return overall_success
+            
+        except Exception as e:
+            self.log_test("Auto-Trade Settings UPDATE", False, str(e))
+            return False
+
+    def test_get_auto_trade_logs(self):
+        """Test GET /api/auto-trade/logs"""
+        try:
+            response = requests.get(f"{self.api_url}/auto-trade/logs?limit=10", timeout=10)
+            success = response.status_code == 200
+            
+            if success:
+                data = response.json()
+                is_list = isinstance(data, list)
+                
+                # Check log structure if any logs exist
+                valid_structure = True
+                if len(data) > 0:
+                    log = data[0]
+                    required_fields = ['symbol', 'action', 'shares', 'price', 'total', 'confidence', 'timestamp']
+                    valid_structure = all(field in log for field in required_fields)
+                    valid_action = log.get('action') in ['BUY', 'SELL', 'SHORT']
+                
+                overall_success = is_list and valid_structure
+                self.log_test("Auto-Trade Logs GET", overall_success, 
+                            f"Found {len(data)} logs, Valid structure: {valid_structure}")
+                return overall_success
+            else:
+                self.log_test("Auto-Trade Logs GET", False, f"Status: {response.status_code}")
+                return False
+        except Exception as e:
+            self.log_test("Auto-Trade Logs GET", False, str(e))
+            return False
+
+    def test_get_short_positions(self):
+        """Test GET /api/short-positions"""
+        try:
+            response = requests.get(f"{self.api_url}/short-positions", timeout=10)
+            success = response.status_code == 200
+            
+            if success:
+                data = response.json()
+                required_fields = ['positions', 'total_short_value', 'total_short_pnl']
+                has_fields = all(field in data for field in required_fields)
+                
+                # Check positions structure
+                positions = data.get('positions', [])
+                is_list = isinstance(positions, list)
+                
+                valid_structure = True
+                if len(positions) > 0:
+                    pos = positions[0]
+                    pos_fields = ['symbol', 'shares', 'entry_price', 'current_price', 'pnl', 'pnl_percent']
+                    valid_structure = all(field in pos for field in pos_fields)
+                
+                overall_success = has_fields and is_list and valid_structure
+                self.log_test("Short Positions GET", overall_success, 
+                            f"Found {len(positions)} positions, Total P&L: ${data.get('total_short_pnl', 0):.2f}")
+                return overall_success
+            else:
+                self.log_test("Short Positions GET", False, f"Status: {response.status_code}")
+                return False
+        except Exception as e:
+            self.log_test("Short Positions GET", False, str(e))
+            return False
+
+    def test_cover_short_position_no_position(self):
+        """Test POST /api/short-positions/cover/{symbol} when no position exists"""
+        try:
+            # Try to cover a position that doesn't exist
+            response = requests.post(f"{self.api_url}/short-positions/cover/FAKE", timeout=10)
+            expected_404 = response.status_code == 404
+            
+            self.log_test("Cover Short Position (No Position)", expected_404, 
+                        f"Status: {response.status_code} (Expected 404)")
+            return expected_404
+        except Exception as e:
+            self.log_test("Cover Short Position (No Position)", False, str(e))
+            return False
+
     def run_all_tests(self):
         """Run comprehensive API test suite"""
         print("🚀 Starting AI Stock Trading API Tests")
