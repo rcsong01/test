@@ -182,10 +182,12 @@ TRACKED_COMPANIES = {
 # Reliable news sources RSS feeds
 NEWS_SOURCES = [
     {"name": "Yahoo Finance", "url": "https://finance.yahoo.com/news/rssindex", "type": "rss"},
-    {"name": "Reuters Business", "url": "https://www.reutersagency.com/feed/?best-topics=business-finance&post_type=best", "type": "rss"},
     {"name": "CNBC Top News", "url": "https://www.cnbc.com/id/100003114/device/rss/rss.html", "type": "rss"},
     {"name": "MarketWatch", "url": "https://feeds.marketwatch.com/marketwatch/topstories/", "type": "rss"},
-    {"name": "Seeking Alpha", "url": "https://seekingalpha.com/market_currents.xml", "type": "rss"},
+    {"name": "Investing.com", "url": "https://www.investing.com/rss/news.rss", "type": "rss"},
+    {"name": "Bloomberg Markets", "url": "https://feeds.bloomberg.com/markets/news.rss", "type": "rss"},
+    {"name": "WSJ Markets", "url": "https://feeds.a.dj.com/rss/RSSMarketsMain.xml", "type": "rss"},
+    {"name": "Reuters Business", "url": "https://www.reuters.com/rssFeed/businessNews", "type": "rss"},
 ]
 
 # ===== HELPER FUNCTIONS =====
