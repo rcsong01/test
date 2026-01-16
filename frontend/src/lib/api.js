@@ -42,6 +42,15 @@ export const api = {
   getAlertLogs: (email) => axios.get(`${API}/alerts/logs/${email}`),
   getAlertStats: () => axios.get(`${API}/alerts/stats`),
   sendTestAlert: (email) => axios.post(`${API}/alerts/test/${email}`),
+  
+  // Auto-Trade endpoints
+  getAutoTradeSettings: () => axios.get(`${API}/auto-trade/settings`),
+  updateAutoTradeSettings: (params) => axios.put(`${API}/auto-trade/settings`, null, { params }),
+  getAutoTradeLogs: (limit = 50) => axios.get(`${API}/auto-trade/logs?limit=${limit}`),
+  
+  // Short Positions endpoints
+  getShortPositions: () => axios.get(`${API}/short-positions`),
+  coverShortPosition: (symbol, shares) => axios.post(`${API}/short-positions/cover/${symbol}`, null, { params: { shares } }),
 };
 
 export default api;
