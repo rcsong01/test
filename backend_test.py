@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """
 AI Stock Trading App - Backend API Testing
-Tests all endpoints for the MarketGenius trading platform
+Tests all endpoints for the MarketGenius trading platform including Signal Alerts
 """
 
 import requests
 import sys
 import json
+import time
 from datetime import datetime
 from typing import Dict, List, Any
 
