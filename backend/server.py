@@ -1123,6 +1123,135 @@ async def get_news_stats():
         "top_companies": signals_by_company
     }
 
+# Alert Subscription Routes
+@api_router.post("/alerts/subscribe")
+async def subscribe_to_alerts(subscription: AlertSubscriptionCreate):
+    """Subscribe to signal alerts"""
+    # Check if email already subscribed
+    existing = await db.alert_subscriptions.find_one({"email": subscription.email})
+    if existing:
+        raise HTTPException(status_code=400, detail="Email already subscribed")
+    
+    sub = AlertSubscription(
+        email=subscription.email,
+        min_confidence=subscription.min_confidence,
+        signal_types=subscription.signal_types,
+        watched_symbols=[s.upper() for s in subscription.watched_symbols],
+        tier="free"
+    )
+    
+    doc = sub.model_dump()
+    doc['created_at'] = doc['created_at'].isoformat()
+    await db.alert_subscriptions.insert_one(doc)
+    
+    # Send welcome email
+    try:
+        welcome_html = f"""
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #0A0A0A; color: #EAEAEA; padding: 30px;">
+            <h1 style="color: #00E599;">🎉 Welcome to MarketGenius Signal Alerts!</h1>
+            <p>You're now subscribed to receive AI-powered trading signals.</p>
+            <div style="background: #1A1A1A; padding: 20px; margin: 20px 0; border-left: 3px solid #00E599;">
+                <h3 style="margin-top: 0;">Your Settings:</h3>
+                <p><strong>Minimum Confidence:</strong> {subscription.min_confidence}%</p>
+                <p><strong>Signal Types:</strong> {', '.join(subscription.signal_types)}</p>
+                <p><strong>Watching:</strong> {', '.join(subscription.watched_symbols) if subscription.watched_symbols else 'All stocks'}</p>
+                <p><strong>Tier:</strong> Free (3 alerts/day)</p>
+            </div>
+            <p style="color: #888;">You'll receive email alerts when our AI detects high-confidence trading signals from breaking news.</p>
+            <p style="color: #666; font-size: 12px;">This is paper trading for educational purposes. Not financial advice.</p>
+        </div>
+        """
+        params = {
+            "from": SENDER_EMAIL,
+            "to": [subscription.email],
+            "subject": "🎉 Welcome to MarketGenius Signal Alerts!",
+            "html": welcome_html
+        }
+        await asyncio.to_thread(resend.Emails.send, params)
+    except Exception as e:
+        logger.error(f"Failed to send welcome email: {e}")
+    
+    return {"message": "Successfully subscribed", "subscription": sub.model_dump()}
+
+@api_router.get("/alerts/subscription/{email}")
+async def get_subscription(email: str):
+    """Get subscription details"""
+    sub = await db.alert_subscriptions.find_one({"email": email}, {"_id": 0})
+    if not sub:
+        raise HTTPException(status_code=404, detail="Subscription not found")
+    return sub
+
+@api_router.put("/alerts/subscription/{email}")
+async def update_subscription(email: str, update: AlertSubscriptionUpdate):
+    """Update subscription settings"""
+    sub = await db.alert_subscriptions.find_one({"email": email})
+    if not sub:
+        raise HTTPException(status_code=404, detail="Subscription not found")
+    
+    update_data = {k: v for k, v in update.model_dump().items() if v is not None}
+    if "watched_symbols" in update_data:
+        update_data["watched_symbols"] = [s.upper() for s in update_data["watched_symbols"]]
+    
+    if update_data:
+        await db.alert_subscriptions.update_one({"email": email}, {"$set": update_data})
+    
+    updated = await db.alert_subscriptions.find_one({"email": email}, {"_id": 0})
+    return updated
+
+@api_router.delete("/alerts/subscription/{email}")
+async def unsubscribe(email: str):
+    """Unsubscribe from alerts"""
+    result = await db.alert_subscriptions.delete_one({"email": email})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Subscription not found")
+    return {"message": "Successfully unsubscribed"}
+
+@api_router.get("/alerts/logs/{email}")
+async def get_alert_logs(email: str, limit: int = 20):
+    """Get alert history for an email"""
+    logs = await db.alert_logs.find({"email": email}, {"_id": 0}).sort("sent_at", -1).to_list(limit)
+    return logs
+
+@api_router.get("/alerts/stats")
+async def get_alert_stats():
+    """Get alert system statistics"""
+    total_subs = await db.alert_subscriptions.count_documents({})
+    active_subs = await db.alert_subscriptions.count_documents({"is_active": True})
+    total_alerts = await db.alert_logs.count_documents({})
+    
+    return {
+        "total_subscribers": total_subs,
+        "active_subscribers": active_subs,
+        "total_alerts_sent": total_alerts,
+        "alert_limits": ALERT_LIMITS
+    }
+
+@api_router.post("/alerts/test/{email}")
+async def send_test_alert(email: str):
+    """Send a test alert email"""
+    sub = await db.alert_subscriptions.find_one({"email": email})
+    if not sub:
+        raise HTTPException(status_code=404, detail="Subscription not found")
+    
+    test_signal = {
+        "id": "test-signal",
+        "symbol": "AAPL",
+        "company_name": "Apple Inc.",
+        "signal": "BUY",
+        "confidence": 85,
+        "reasoning": "This is a test alert to verify your email subscription is working correctly. When real signals are generated, you'll receive similar alerts with actual news and AI analysis.",
+        "news_title": "Test Alert: Your MarketGenius Subscription is Active",
+        "news_source": "MarketGenius AI",
+        "news_url": "https://marketgenius-23.preview.emergentagent.com"
+    }
+    
+    success = await send_alert_email(email, test_signal)
+    
+    if success:
+        return {"message": "Test alert sent successfully"}
+    else:
+        raise HTTPException(status_code=500, detail="Failed to send test alert")
+
 # Include the router in the main app
 app.include_router(api_router)
 
