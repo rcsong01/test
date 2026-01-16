@@ -541,9 +541,215 @@ async def scan_and_analyze_news():
                 new_signals.append(signal_doc)
                 
                 logger.info(f"New {analysis['signal']} signal for {company['symbol']}: {article['title'][:50]}...")
+                
+                # Send alerts to subscribers
+                await send_signal_alerts(signal_doc)
     
     logger.info(f"News scan complete. Generated {len(new_signals)} new signals.")
     return new_signals
+
+# ===== EMAIL ALERT FUNCTIONS =====
+
+def generate_alert_email_html(signal: dict) -> str:
+    """Generate beautiful HTML email for signal alert"""
+    signal_color = "#00E599" if signal["signal"] == "BUY" else "#FF3333"
+    signal_bg = "rgba(0, 229, 153, 0.1)" if signal["signal"] == "BUY" else "rgba(255, 51, 51, 0.1)"
+    
+    return f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body style="margin: 0; padding: 0; background-color: #050505; font-family: 'Helvetica Neue', Arial, sans-serif;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #050505; padding: 40px 20px;">
+            <tr>
+                <td align="center">
+                    <table width="600" cellpadding="0" cellspacing="0" style="background-color: #0A0A0A; border: 1px solid #262626;">
+                        <!-- Header -->
+                        <tr>
+                            <td style="padding: 30px; border-bottom: 1px solid #262626;">
+                                <table width="100%">
+                                    <tr>
+                                        <td>
+                                            <span style="color: #00E599; font-size: 24px; font-weight: bold;">⚡ MarketGenius</span>
+                                            <span style="background: #00E599; color: #000; padding: 2px 8px; font-size: 12px; margin-left: 10px;">AI</span>
+                                        </td>
+                                        <td align="right">
+                                            <span style="color: #888; font-size: 12px;">SIGNAL ALERT</span>
+                                        </td>
+                                    </tr>
+                                </table>
+                            </td>
+                        </tr>
+                        
+                        <!-- Signal Box -->
+                        <tr>
+                            <td style="padding: 30px;">
+                                <table width="100%" style="background: {signal_bg}; border-left: 4px solid {signal_color}; padding: 20px;">
+                                    <tr>
+                                        <td>
+                                            <table width="100%">
+                                                <tr>
+                                                    <td>
+                                                        <span style="background: {signal_color}; color: {'#000' if signal['signal'] == 'BUY' else '#fff'}; padding: 6px 16px; font-size: 14px; font-weight: bold; letter-spacing: 1px;">
+                                                            {signal['signal']}
+                                                        </span>
+                                                        <span style="color: #EAEAEA; font-size: 28px; font-weight: bold; margin-left: 15px; letter-spacing: 2px;">
+                                                            {signal['symbol']}
+                                                        </span>
+                                                    </td>
+                                                    <td align="right">
+                                                        <span style="color: #888; font-size: 12px;">CONFIDENCE</span><br>
+                                                        <span style="color: {signal_color}; font-size: 24px; font-weight: bold;">{signal['confidence']}%</span>
+                                                    </td>
+                                                </tr>
+                                            </table>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding-top: 15px;">
+                                            <span style="color: #888; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Company</span><br>
+                                            <span style="color: #EAEAEA; font-size: 16px;">{signal['company_name']}</span>
+                                        </td>
+                                    </tr>
+                                </table>
+                            </td>
+                        </tr>
+                        
+                        <!-- News -->
+                        <tr>
+                            <td style="padding: 0 30px 30px;">
+                                <span style="color: #888; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Breaking News</span>
+                                <p style="color: #EAEAEA; font-size: 18px; margin: 10px 0; line-height: 1.4;">
+                                    {signal['news_title']}
+                                </p>
+                                <span style="color: #666; font-size: 12px;">Source: {signal['news_source']}</span>
+                            </td>
+                        </tr>
+                        
+                        <!-- Analysis -->
+                        <tr>
+                            <td style="padding: 0 30px 30px;">
+                                <span style="color: #888; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">AI Analysis</span>
+                                <p style="color: #EAEAEA; font-size: 14px; margin: 10px 0; line-height: 1.6; background: #1A1A1A; padding: 15px; border-left: 2px solid #3333FF;">
+                                    {signal['reasoning']}
+                                </p>
+                            </td>
+                        </tr>
+                        
+                        <!-- CTA -->
+                        <tr>
+                            <td style="padding: 0 30px 30px;" align="center">
+                                <a href="{signal['news_url']}" style="display: inline-block; background: #00E599; color: #000; padding: 12px 30px; text-decoration: none; font-weight: bold; letter-spacing: 1px; font-size: 14px;">
+                                    READ FULL ARTICLE →
+                                </a>
+                            </td>
+                        </tr>
+                        
+                        <!-- Footer -->
+                        <tr>
+                            <td style="padding: 20px 30px; border-top: 1px solid #262626; background: #0A0A0A;">
+                                <table width="100%">
+                                    <tr>
+                                        <td style="color: #666; font-size: 11px;">
+                                            This is a paper trading signal for educational purposes only.<br>
+                                            Not financial advice. Always do your own research.
+                                        </td>
+                                        <td align="right" style="color: #666; font-size: 11px;">
+                                            MarketGenius AI<br>
+                                            <a href="#" style="color: #00E599;">Manage Alerts</a>
+                                        </td>
+                                    </tr>
+                                </table>
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </body>
+    </html>
+    """
+
+async def send_alert_email(email: str, signal: dict) -> bool:
+    """Send alert email using Resend"""
+    try:
+        html_content = generate_alert_email_html(signal)
+        
+        params = {
+            "from": SENDER_EMAIL,
+            "to": [email],
+            "subject": f"🚨 {signal['signal']} Signal: {signal['symbol']} ({signal['confidence']}% confidence)",
+            "html": html_content
+        }
+        
+        # Run sync SDK in thread to keep FastAPI non-blocking
+        result = await asyncio.to_thread(resend.Emails.send, params)
+        logger.info(f"Alert email sent to {email} for {signal['symbol']} - ID: {result.get('id')}")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to send alert email to {email}: {e}")
+        return False
+
+async def send_signal_alerts(signal: dict):
+    """Send alerts to all eligible subscribers for a signal"""
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    
+    # Find all active subscribers who want this signal
+    query = {
+        "is_active": True,
+        "min_confidence": {"$lte": signal["confidence"]},
+        "signal_types": signal["signal"]
+    }
+    
+    subscribers = await db.alert_subscriptions.find(query, {"_id": 0}).to_list(1000)
+    
+    for sub in subscribers:
+        # Check if watching specific symbols or all
+        if sub.get("watched_symbols") and signal["symbol"] not in sub["watched_symbols"]:
+            continue
+        
+        # Check daily limit
+        tier = sub.get("tier", "free")
+        limit = ALERT_LIMITS.get(tier, 3)
+        
+        # Reset counter if new day
+        if sub.get("last_alert_date") != today:
+            await db.alert_subscriptions.update_one(
+                {"id": sub["id"]},
+                {"$set": {"alerts_sent_today": 0, "last_alert_date": today}}
+            )
+            sub["alerts_sent_today"] = 0
+        
+        if sub.get("alerts_sent_today", 0) >= limit:
+            logger.info(f"Subscriber {sub['email']} reached daily limit ({limit})")
+            continue
+        
+        # Send email
+        success = await send_alert_email(sub["email"], signal)
+        
+        if success:
+            # Log the alert
+            alert_log = AlertLog(
+                subscription_id=sub["id"],
+                email=sub["email"],
+                signal_id=signal["id"],
+                symbol=signal["symbol"],
+                signal_type=signal["signal"],
+                confidence=signal["confidence"],
+                status="sent"
+            )
+            log_doc = alert_log.model_dump()
+            log_doc['sent_at'] = log_doc['sent_at'].isoformat()
+            await db.alert_logs.insert_one(log_doc)
+            
+            # Update counter
+            await db.alert_subscriptions.update_one(
+                {"id": sub["id"]},
+                {"$inc": {"alerts_sent_today": 1}, "$set": {"last_alert_date": today}}
+            )
 
 # Background task to periodically scan news
 news_scan_running = False
