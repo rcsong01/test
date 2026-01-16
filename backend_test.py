@@ -577,6 +577,18 @@ class StockTradingAPITester:
         self.test_news_articles()
         self.test_news_scan_trigger()
         
+        # Signal Alerts features
+        print(f"\n🔔 Testing Signal Alerts Features (Email: {self.test_email})...")
+        if self.test_subscribe_to_alerts():
+            self.test_get_subscription()
+            self.test_update_subscription()
+            self.test_send_test_alert()
+            self.test_unsubscribe()
+        
+        # Test edge cases
+        self.test_duplicate_subscription_prevention()
+        self.test_get_alert_stats()
+        
         # Print summary
         print("\n" + "=" * 50)
         print(f"📊 Test Results: {self.tests_passed}/{self.tests_run} passed")
