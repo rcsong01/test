@@ -83,20 +83,38 @@ class StockTradingAPITester:
             return False
 
     def test_stock_quote(self, symbol="AAPL"):
-        """Test individual stock quote"""
+        """Test individual stock quote with real data verification"""
         try:
             response = requests.get(f"{self.api_url}/stocks/{symbol}/quote", timeout=10)
             if response.status_code == 200:
                 data = response.json()
                 required_fields = ['symbol', 'price', 'change', 'change_percent', 'volume']
                 has_fields = all(field in data for field in required_fields)
-                self.log_test(f"Stock Quote ({symbol})", has_fields, f"Price: ${data.get('price', 'N/A')}")
-                return has_fields
+                
+                # Verify real data characteristics
+                price = data.get('price', 0)
+                volume = data.get('volume', 0)
+                
+                # For AAPL, check if price is in realistic range (around $250-260 as mentioned in requirements)
+                if symbol == "AAPL":
+                    realistic_price = 200 <= price <= 300  # Allow some buffer around expected range
+                    self.log_test(f"AAPL Price Range Check", realistic_price, 
+                                f"AAPL Price: ${price} (Expected: $200-300 range)")
+                
+                # General real data checks
+                real_data = (price > 0 and volume > 0 and 
+                           'error' not in data and 
+                           data.get('timestamp') is not None)
+                
+                overall_success = has_fields and real_data
+                self.log_test(f"Stock Quote ({symbol}) Real Data", overall_success, 
+                            f"Price: ${price}, Volume: {volume:,}, Real: {real_data}")
+                return overall_success
             else:
-                self.log_test(f"Stock Quote ({symbol})", False, f"Status: {response.status_code}")
+                self.log_test(f"Stock Quote ({symbol}) Real Data", False, f"Status: {response.status_code}")
                 return False
         except Exception as e:
-            self.log_test(f"Stock Quote ({symbol})", False, str(e))
+            self.log_test(f"Stock Quote ({symbol}) Real Data", False, str(e))
             return False
 
     def test_stock_history(self, symbol="AAPL"):
