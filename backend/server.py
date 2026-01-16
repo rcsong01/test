@@ -302,13 +302,17 @@ def extract_company_from_text(text: str) -> List[dict]:
     found_companies = []
     text_lower = text.lower()
     
-    for symbol, name in TRACKED_COMPANIES.items():
+    for symbol, data in TRACKED_COMPANIES.items():
         # Check for symbol (with word boundaries)
         if re.search(rf'\b{symbol}\b', text, re.IGNORECASE):
-            found_companies.append({"symbol": symbol, "name": name})
-        # Check for company name
-        elif name.lower().split()[0] in text_lower:  # Check first word of company name
-            found_companies.append({"symbol": symbol, "name": name})
+            found_companies.append({"symbol": symbol, "name": data["name"]})
+            continue
+        
+        # Check for company keywords
+        for keyword in data["keywords"]:
+            if keyword.lower() in text_lower:
+                found_companies.append({"symbol": symbol, "name": data["name"]})
+                break
     
     return found_companies
 
