@@ -125,6 +125,69 @@ class UserBalance(BaseModel):
     cash_balance: float = 100000.0  # Starting with $100k paper money
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
+class NewsArticle(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    title: str
+    summary: str
+    source: str
+    url: str
+    symbol: str
+    company_name: str
+    published_at: datetime
+    fetched_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    signal: Optional[str] = None  # BUY, SELL, HOLD
+    signal_confidence: Optional[int] = None
+    signal_reasoning: Optional[str] = None
+    analyzed: bool = False
+
+class NewsSignal(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    news_id: str
+    symbol: str
+    company_name: str
+    signal: str  # BUY, SELL, HOLD
+    confidence: int
+    reasoning: str
+    news_title: str
+    news_source: str
+    news_url: str
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+# Company symbols and names mapping
+TRACKED_COMPANIES = {
+    "AAPL": "Apple Inc.",
+    "MSFT": "Microsoft Corporation",
+    "GOOGL": "Alphabet Inc.",
+    "AMZN": "Amazon.com Inc.",
+    "NVDA": "NVIDIA Corporation",
+    "META": "Meta Platforms Inc.",
+    "TSLA": "Tesla Inc.",
+    "JPM": "JPMorgan Chase & Co.",
+    "V": "Visa Inc.",
+    "WMT": "Walmart Inc.",
+    "JNJ": "Johnson & Johnson",
+    "PG": "Procter & Gamble Co.",
+    "MA": "Mastercard Inc.",
+    "UNH": "UnitedHealth Group Inc.",
+    "HD": "The Home Depot Inc.",
+    "DIS": "The Walt Disney Company",
+    "BAC": "Bank of America Corp.",
+    "NFLX": "Netflix Inc.",
+    "ADBE": "Adobe Inc.",
+    "CRM": "Salesforce Inc."
+}
+
+# Reliable news sources RSS feeds
+NEWS_SOURCES = [
+    {"name": "Yahoo Finance", "url": "https://finance.yahoo.com/news/rssindex", "type": "rss"},
+    {"name": "Reuters Business", "url": "https://www.reutersagency.com/feed/?best-topics=business-finance&post_type=best", "type": "rss"},
+    {"name": "CNBC Top News", "url": "https://www.cnbc.com/id/100003114/device/rss/rss.html", "type": "rss"},
+    {"name": "MarketWatch", "url": "https://feeds.marketwatch.com/marketwatch/topstories/", "type": "rss"},
+    {"name": "Seeking Alpha", "url": "https://seekingalpha.com/market_currents.xml", "type": "rss"},
+]
+
 # ===== HELPER FUNCTIONS =====
 
 async def get_stock_quote_from_api(symbol: str) -> dict:
