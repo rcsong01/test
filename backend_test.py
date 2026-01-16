@@ -554,7 +554,71 @@ class StockTradingAPITester:
             self.log_test("Unsubscribe", False, str(e))
             return False
 
-    def test_duplicate_subscription_prevention(self):
+    def test_all_trending_stocks_real_data(self):
+        """Test that all 8 trending stocks load with real prices"""
+        try:
+            response = requests.get(f"{self.api_url}/stocks/trending", timeout=20)
+            if response.status_code == 200:
+                data = response.json()
+                
+                if len(data) < 8:
+                    self.log_test("All 8 Trending Stocks Real Data", False, f"Only {len(data)} stocks returned, expected 8")
+                    return False
+                
+                # Test each stock individually
+                all_real = True
+                failed_stocks = []
+                
+                for stock in data:
+                    symbol = stock.get('symbol', '')
+                    price = stock.get('price', 0)
+                    volume = stock.get('volume', 0)
+                    
+                    # Check if data looks real
+                    if price <= 0 or volume <= 0 or 'error' in stock:
+                        all_real = False
+                        failed_stocks.append(f"{symbol}: price={price}, volume={volume}")
+                
+                self.log_test("All 8 Trending Stocks Real Data", all_real, 
+                            f"Tested {len(data)} stocks. Failed: {failed_stocks[:3] if failed_stocks else 'None'}")
+                return all_real
+            else:
+                self.log_test("All 8 Trending Stocks Real Data", False, f"Status: {response.status_code}")
+                return False
+        except Exception as e:
+            self.log_test("All 8 Trending Stocks Real Data", False, str(e))
+            return False
+
+    def test_yfinance_integration(self):
+        """Test that yfinance integration is working (no mocked data)"""
+        try:
+            # Test multiple symbols to ensure yfinance is working
+            test_symbols = ["AAPL", "MSFT", "GOOGL"]
+            all_working = True
+            
+            for symbol in test_symbols:
+                response = requests.get(f"{self.api_url}/stocks/{symbol}/quote", timeout=10)
+                if response.status_code == 200:
+                    data = response.json()
+                    # Check for yfinance-specific fields and realistic data
+                    has_name = 'name' in data and data['name'] != symbol  # yfinance provides company names
+                    has_realistic_price = data.get('price', 0) > 0
+                    has_volume = data.get('volume', 0) > 0
+                    no_error = 'error' not in data
+                    
+                    if not (has_name and has_realistic_price and has_volume and no_error):
+                        all_working = False
+                        break
+                else:
+                    all_working = False
+                    break
+            
+            self.log_test("YFinance Integration (No Mock Data)", all_working, 
+                        f"Tested {len(test_symbols)} symbols, All working: {all_working}")
+            return all_working
+        except Exception as e:
+            self.log_test("YFinance Integration (No Mock Data)", False, str(e))
+            return False
         """Test that duplicate subscriptions are prevented"""
         try:
             # Create a subscription
