@@ -353,6 +353,191 @@ class StockTradingAPITester:
             self.log_test("Transactions", False, str(e))
             return False
 
+    # ===== SIGNAL ALERTS TESTING =====
+    
+    def test_subscribe_to_alerts(self):
+        """Test POST /api/alerts/subscribe"""
+        try:
+            subscription_data = {
+                "email": self.test_email,
+                "min_confidence": 75,
+                "signal_types": ["BUY", "SELL"],
+                "watched_symbols": ["AAPL", "MSFT"]
+            }
+            
+            response = requests.post(f"{self.api_url}/alerts/subscribe", 
+                                   json=subscription_data, timeout=10)
+            success = response.status_code == 201
+            
+            if success:
+                data = response.json()
+                if 'subscription' in data:
+                    sub = data['subscription']
+                    valid_data = (sub.get('email') == self.test_email and 
+                                sub.get('min_confidence') == 75 and
+                                'BUY' in sub.get('signal_types', []))
+                    self.log_test("Subscribe to Alerts", valid_data, 
+                                f"Email: {sub.get('email')}, Confidence: {sub.get('min_confidence')}%")
+                    return valid_data
+                else:
+                    self.log_test("Subscribe to Alerts", False, "Missing subscription in response")
+                    return False
+            else:
+                self.log_test("Subscribe to Alerts", False, f"Status: {response.status_code}")
+                return False
+        except Exception as e:
+            self.log_test("Subscribe to Alerts", False, str(e))
+            return False
+
+    def test_get_subscription(self):
+        """Test GET /api/alerts/subscription/{email}"""
+        try:
+            response = requests.get(f"{self.api_url}/alerts/subscription/{self.test_email}", timeout=10)
+            success = response.status_code == 200
+            
+            if success:
+                data = response.json()
+                valid_data = (data.get('email') == self.test_email and
+                            data.get('is_active') == True and
+                            data.get('min_confidence') == 75)
+                self.log_test("Get Subscription", valid_data, 
+                            f"Active: {data.get('is_active')}, Confidence: {data.get('min_confidence')}%")
+                return valid_data
+            else:
+                self.log_test("Get Subscription", False, f"Status: {response.status_code}")
+                return False
+        except Exception as e:
+            self.log_test("Get Subscription", False, str(e))
+            return False
+
+    def test_update_subscription(self):
+        """Test PUT /api/alerts/subscription/{email}"""
+        try:
+            update_data = {
+                "min_confidence": 80,
+                "signal_types": ["BUY"],
+                "watched_symbols": ["AAPL", "GOOGL", "TSLA"]
+            }
+            
+            response = requests.put(f"{self.api_url}/alerts/subscription/{self.test_email}",
+                                  json=update_data, timeout=10)
+            success = response.status_code == 200
+            
+            if success:
+                data = response.json()
+                valid_update = (data.get('min_confidence') == 80 and
+                              data.get('signal_types') == ["BUY"] and
+                              len(data.get('watched_symbols', [])) == 3)
+                self.log_test("Update Subscription", valid_update,
+                            f"New confidence: {data.get('min_confidence')}%, Symbols: {len(data.get('watched_symbols', []))}")
+                return valid_update
+            else:
+                self.log_test("Update Subscription", False, f"Status: {response.status_code}")
+                return False
+        except Exception as e:
+            self.log_test("Update Subscription", False, str(e))
+            return False
+
+    def test_send_test_alert(self):
+        """Test POST /api/alerts/test/{email}"""
+        try:
+            response = requests.post(f"{self.api_url}/alerts/test/{self.test_email}", timeout=15)
+            success = response.status_code == 200
+            
+            if success:
+                data = response.json()
+                has_message = 'message' in data and 'test alert sent' in data['message'].lower()
+                self.log_test("Send Test Alert", has_message, data.get('message', 'No message'))
+                return has_message
+            else:
+                self.log_test("Send Test Alert", False, f"Status: {response.status_code}")
+                return False
+        except Exception as e:
+            self.log_test("Send Test Alert", False, str(e))
+            return False
+
+    def test_get_alert_stats(self):
+        """Test GET /api/alerts/stats"""
+        try:
+            response = requests.get(f"{self.api_url}/alerts/stats", timeout=10)
+            success = response.status_code == 200
+            
+            if success:
+                data = response.json()
+                required_fields = ['total_subscribers', 'active_subscribers', 'total_alerts_sent', 'alert_limits']
+                has_fields = all(field in data for field in required_fields)
+                
+                if has_fields:
+                    subscriber_count = data.get('total_subscribers', 0)
+                    self.log_test("Alert Stats", True, 
+                                f"Subscribers: {subscriber_count}, Alerts sent: {data.get('total_alerts_sent', 0)}")
+                    return True
+                else:
+                    missing = [f for f in required_fields if f not in data]
+                    self.log_test("Alert Stats", False, f"Missing fields: {missing}")
+                    return False
+            else:
+                self.log_test("Alert Stats", False, f"Status: {response.status_code}")
+                return False
+        except Exception as e:
+            self.log_test("Alert Stats", False, str(e))
+            return False
+
+    def test_unsubscribe(self):
+        """Test DELETE /api/alerts/subscription/{email}"""
+        try:
+            response = requests.delete(f"{self.api_url}/alerts/subscription/{self.test_email}", timeout=10)
+            success = response.status_code == 200
+            
+            if success:
+                # Verify subscription is deleted
+                verify_response = requests.get(f"{self.api_url}/alerts/subscription/{self.test_email}", timeout=10)
+                deleted = verify_response.status_code == 404
+                self.log_test("Unsubscribe", deleted, "Subscription successfully removed" if deleted else "Subscription still exists")
+                return deleted
+            else:
+                self.log_test("Unsubscribe", False, f"Status: {response.status_code}")
+                return False
+        except Exception as e:
+            self.log_test("Unsubscribe", False, str(e))
+            return False
+
+    def test_duplicate_subscription_prevention(self):
+        """Test that duplicate subscriptions are prevented"""
+        try:
+            # Create a subscription
+            test_email = f"duplicate_{int(time.time())}@example.com"
+            subscription_data = {
+                "email": test_email,
+                "min_confidence": 70,
+                "signal_types": ["BUY"],
+                "watched_symbols": []
+            }
+            
+            # First subscription should succeed
+            response1 = requests.post(f"{self.api_url}/alerts/subscribe", 
+                                    json=subscription_data, timeout=10)
+            
+            if response1.status_code == 201:
+                # Second subscription should fail
+                response2 = requests.post(f"{self.api_url}/alerts/subscribe", 
+                                        json=subscription_data, timeout=10)
+                prevented = response2.status_code == 400
+                
+                # Clean up
+                requests.delete(f"{self.api_url}/alerts/subscription/{test_email}", timeout=10)
+                
+                self.log_test("Duplicate Subscription Prevention", prevented, 
+                            f"Second attempt status: {response2.status_code}")
+                return prevented
+            else:
+                self.log_test("Duplicate Subscription Prevention", False, 
+                            f"First subscription failed: {response1.status_code}")
+                return False
+        except Exception as e:
+            self.log_test("Duplicate Subscription Prevention", False, str(e))
+            return False
+
     def run_all_tests(self):
         """Run comprehensive API test suite"""
         print("🚀 Starting AI Stock Trading API Tests")
