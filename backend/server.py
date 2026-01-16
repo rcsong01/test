@@ -1239,9 +1239,147 @@ async def remove_from_watchlist(symbol: str):
 # Balance Route
 @api_router.get("/balance")
 async def get_balance():
-    """Get current cash balance"""
+    """Get current cash balance and auto-trade settings"""
     balance = await get_or_create_balance()
-    return balance
+    return {
+        "cash_balance": balance.get("cash_balance", 100000.0),
+        "auto_trade_enabled": balance.get("auto_trade_enabled", True),
+        "auto_trade_amount": balance.get("auto_trade_amount", 1000.0),
+        "auto_trade_min_confidence": balance.get("auto_trade_min_confidence", 80)
+    }
+
+# Auto-Trade Routes
+@api_router.get("/auto-trade/settings")
+async def get_auto_trade_settings_route():
+    """Get auto-trade settings"""
+    settings = await get_auto_trade_settings()
+    return settings
+
+@api_router.put("/auto-trade/settings")
+async def update_auto_trade_settings(
+    enabled: Optional[bool] = None,
+    amount: Optional[float] = None,
+    min_confidence: Optional[int] = None
+):
+    """Update auto-trade settings"""
+    update_data = {}
+    if enabled is not None:
+        update_data["auto_trade_enabled"] = enabled
+    if amount is not None:
+        update_data["auto_trade_amount"] = amount
+    if min_confidence is not None:
+        update_data["auto_trade_min_confidence"] = min_confidence
+    
+    if update_data:
+        await db.balance.update_one({}, {"$set": update_data})
+    
+    return await get_auto_trade_settings()
+
+@api_router.get("/auto-trade/logs")
+async def get_auto_trade_logs(limit: int = 50):
+    """Get auto-trade execution logs"""
+    logs = await db.auto_trade_logs.find({}, {"_id": 0}).sort("timestamp", -1).to_list(limit)
+    return logs
+
+# Short Positions Routes
+@api_router.get("/short-positions")
+async def get_short_positions():
+    """Get current short positions with P&L"""
+    positions = await db.short_positions.find({}, {"_id": 0}).to_list(100)
+    
+    updated_positions = []
+    total_short_value = 0.0
+    total_short_pnl = 0.0
+    
+    for pos in positions:
+        quote = await get_stock_quote_from_api(pos['symbol'])
+        current_price = quote['price']
+        entry_price = pos['entry_price']
+        shares = pos['shares']
+        
+        # Short P&L: profit when price goes down
+        pnl = (entry_price - current_price) * shares
+        pnl_percent = ((entry_price - current_price) / entry_price * 100) if entry_price > 0 else 0
+        
+        market_value = current_price * shares
+        total_short_value += market_value
+        total_short_pnl += pnl
+        
+        updated_positions.append({
+            **pos,
+            "current_price": current_price,
+            "market_value": round(market_value, 2),
+            "pnl": round(pnl, 2),
+            "pnl_percent": round(pnl_percent, 2)
+        })
+    
+    return {
+        "positions": updated_positions,
+        "total_short_value": round(total_short_value, 2),
+        "total_short_pnl": round(total_short_pnl, 2)
+    }
+
+@api_router.post("/short-positions/cover/{symbol}")
+async def cover_short_position(symbol: str, shares: Optional[float] = None):
+    """Cover (close) a short position"""
+    symbol = symbol.upper()
+    position = await db.short_positions.find_one({"symbol": symbol}, {"_id": 0})
+    
+    if not position:
+        raise HTTPException(status_code=404, detail="No short position found")
+    
+    # Get current price
+    quote = await get_stock_quote_from_api(symbol)
+    current_price = quote['price']
+    
+    # Determine shares to cover
+    cover_shares = shares if shares else position['shares']
+    cover_shares = min(cover_shares, position['shares'])
+    
+    total_cost = cover_shares * current_price
+    
+    # Get balance
+    balance = await get_or_create_balance()
+    cash = balance.get("cash_balance", 100000.0)
+    
+    if total_cost > cash:
+        raise HTTPException(status_code=400, detail="Insufficient funds to cover short")
+    
+    # Deduct cash (buying back shares)
+    new_cash = cash - total_cost
+    await db.balance.update_one({}, {"$set": {"cash_balance": new_cash}})
+    
+    # Calculate P&L
+    entry_price = position['entry_price']
+    pnl = (entry_price - current_price) * cover_shares
+    
+    # Update or remove short position
+    remaining = position['shares'] - cover_shares
+    if remaining <= 0:
+        await db.short_positions.delete_one({"symbol": symbol})
+    else:
+        await db.short_positions.update_one(
+            {"symbol": symbol},
+            {"$set": {"shares": remaining, "updated_at": datetime.now(timezone.utc).isoformat()}}
+        )
+    
+    # Record transaction
+    tx = Transaction(
+        symbol=symbol,
+        action="COVER",
+        shares=cover_shares,
+        price=current_price,
+        total=total_cost
+    )
+    tx_doc = tx.model_dump()
+    tx_doc['timestamp'] = tx_doc['timestamp'].isoformat()
+    await db.transactions.insert_one(tx_doc)
+    
+    return {
+        "message": f"Covered {cover_shares} shares of {symbol}",
+        "pnl": round(pnl, 2),
+        "remaining_shares": remaining
+    }
 
 # News Routes
 @api_router.get("/news/signals")
