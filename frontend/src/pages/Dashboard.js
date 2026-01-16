@@ -683,6 +683,16 @@ export default function Dashboard() {
           </form>
           
           <div className="flex gap-2">
+            <AutoTradeSettingsModal onSettingsChange={fetchDashboardData}>
+              <Button 
+                variant="outline"
+                className="font-mono uppercase tracking-wider border-primary text-primary hover:bg-primary hover:text-black"
+                data-testid="auto-trade-btn"
+              >
+                <Bot className="h-4 w-4 mr-2" />
+                Auto-Trade
+              </Button>
+            </AutoTradeSettingsModal>
             <SignalAlertsModal>
               <Button 
                 className="bg-primary text-black font-mono uppercase tracking-wider btn-glow"
@@ -700,7 +710,7 @@ export default function Dashboard() {
               data-testid="scan-news-btn"
             >
               {isScanning ? <RefreshCw className="h-4 w-4 animate-spin mr-2" /> : <Newspaper className="h-4 w-4 mr-2" />}
-              Scan News
+              Scan
             </Button>
             <Button 
               variant="outline" 
@@ -708,8 +718,7 @@ export default function Dashboard() {
               className="font-mono uppercase tracking-wider"
               data-testid="refresh-btn"
             >
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Refresh
+              <RefreshCw className="h-4 w-4" />
             </Button>
           </div>
         </div>
