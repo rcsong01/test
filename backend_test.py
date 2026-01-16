@@ -619,7 +619,8 @@ class StockTradingAPITester:
         except Exception as e:
             self.log_test("YFinance Integration (No Mock Data)", False, str(e))
             return False
-        """Test that duplicate subscriptions are prevented"""
+
+    def test_duplicate_subscription_prevention(self):
         try:
             # Create a subscription
             test_email = f"duplicate_{int(time.time())}@example.com"
