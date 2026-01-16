@@ -664,8 +664,11 @@ class StockTradingAPITester:
             print("❌ API not accessible, stopping tests")
             return False
             
-        # Core stock data
+        # Core stock data - Real Data Testing
+        print("\n📈 Testing Real Stock Data (No Mock Data)...")
+        self.test_yfinance_integration()
         self.test_trending_stocks()
+        self.test_all_trending_stocks_real_data()
         self.test_stock_quote("AAPL")
         self.test_stock_quote("MSFT") 
         self.test_stock_history("AAPL")
