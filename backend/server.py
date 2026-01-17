@@ -801,14 +801,15 @@ Based on this news, what is your trading signal? Respond in JSON format."""
         }
 
 async def scan_and_analyze_news():
-    """Main function to scan news and generate signals"""
-    logger.info("Starting news scan...")
+    """Main function to scan news and generate signals for ALL publicly traded companies"""
+    logger.info("Starting comprehensive news scan for ALL public companies...")
     
     # Fetch all news
     articles = await fetch_all_news()
-    logger.info(f"Fetched {len(articles)} articles from news sources")
+    logger.info(f"Fetched {len(articles)} articles from {len(NEWS_SOURCES)} verified news sources")
     
     new_signals = []
+    processed_count = 0
     
     for article in articles:
         # Check if we already processed this article
@@ -816,15 +817,18 @@ async def scan_and_analyze_news():
         if existing:
             continue
         
-        # Find companies mentioned in the article
+        # Find ALL companies mentioned in the article (not limited to pre-defined list)
         full_text = f"{article['title']} {article['summary']}"
-        companies = extract_company_from_text(full_text)
+        companies = await extract_companies_from_text(full_text)
         
         if not companies:
             continue
         
-        # Analyze for each company mentioned
-        for company in companies[:2]:  # Limit to 2 companies per article
+        processed_count += 1
+        logger.info(f"Found {len(companies)} companies in article: {article['title'][:50]}...")
+        
+        # Analyze for each company mentioned (up to 3 per article)
+        for company in companies[:3]:
             # Analyze with AI
             analysis = await analyze_news_with_ai(article, company)
             
