@@ -89,23 +89,23 @@ const PortfolioSummary = ({ portfolio }) => {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="font-mono text-4xl font-bold tracking-wide mb-2">
+        <div className="font-mono text-3xl font-bold tracking-wide mb-4">
           {formatCurrency(portfolio.total_value + portfolio.cash_balance)}
         </div>
-        <div className="grid grid-cols-3 gap-4 mt-4">
-          <div>
-            <div className="text-muted-foreground text-xs uppercase tracking-wider mb-1">Invested</div>
-            <div className="font-mono text-lg">{formatCurrency(portfolio.total_value)}</div>
+        <div className="space-y-3">
+          <div className="flex justify-between items-center">
+            <span className="text-muted-foreground text-xs uppercase tracking-wider">Invested</span>
+            <span className="font-mono text-sm">{formatCurrency(portfolio.total_value)}</span>
           </div>
-          <div>
-            <div className="text-muted-foreground text-xs uppercase tracking-wider mb-1">Cash</div>
-            <div className="font-mono text-lg">{formatCurrency(portfolio.cash_balance)}</div>
+          <div className="flex justify-between items-center">
+            <span className="text-muted-foreground text-xs uppercase tracking-wider">Cash</span>
+            <span className="font-mono text-sm">{formatCurrency(portfolio.cash_balance)}</span>
           </div>
-          <div>
-            <div className="text-muted-foreground text-xs uppercase tracking-wider mb-1">P&L</div>
-            <div className={cn("font-mono text-lg", isPositive ? "text-positive" : "text-negative")}>
+          <div className="flex justify-between items-center">
+            <span className="text-muted-foreground text-xs uppercase tracking-wider">P&L</span>
+            <span className={cn("font-mono text-sm font-bold", isPositive ? "text-positive" : "text-negative")}>
               {formatCurrency(portfolio.total_gain_loss)}
-            </div>
+            </span>
           </div>
         </div>
       </CardContent>
