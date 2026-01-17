@@ -583,34 +583,125 @@ async def execute_auto_trade(signal: dict):
 
 # ===== NEWS SCANNING FUNCTIONS =====
 
-def extract_company_from_text(text: str) -> List[dict]:
-    """Extract company symbols and names from news text"""
+async def validate_stock_symbol(symbol: str) -> dict:
+    """Validate if a symbol is a real publicly traded stock using yfinance"""
+    global validated_symbols_cache
+    
+    # Check cache first
+    if symbol in validated_symbols_cache:
+        return validated_symbols_cache[symbol]
+    
+    try:
+        def check_symbol():
+            ticker = yf.Ticker(symbol)
+            info = ticker.info
+            # Check if it's a valid stock with a name and price
+            if info.get('shortName') and (info.get('regularMarketPrice') or info.get('currentPrice')):
+                return {
+                    "valid": True,
+                    "symbol": symbol,
+                    "name": info.get('shortName') or info.get('longName', symbol),
+                    "price": info.get('regularMarketPrice') or info.get('currentPrice', 0)
+                }
+            return {"valid": False}
+        
+        result = await asyncio.to_thread(check_symbol)
+        validated_symbols_cache[symbol] = result
+        return result
+    except Exception as e:
+        validated_symbols_cache[symbol] = {"valid": False}
+        return {"valid": False}
+
+async def extract_companies_from_text(text: str) -> List[dict]:
+    """Extract ALL publicly traded company symbols from news text"""
     found_companies = []
+    seen_symbols = set()
     text_lower = text.lower()
     
-    for symbol, data in TRACKED_COMPANIES.items():
-        # Check for symbol (with word boundaries)
-        if re.search(rf'\b{symbol}\b', text, re.IGNORECASE):
-            found_companies.append({"symbol": symbol, "name": data["name"]})
+    # 1. First check for known major company keywords (high priority)
+    for symbol, keywords in MAJOR_COMPANY_KEYWORDS.items():
+        if symbol in seen_symbols:
             continue
-        
-        # Check for company keywords
-        for keyword in data["keywords"]:
+        for keyword in keywords:
             if keyword.lower() in text_lower:
-                found_companies.append({"symbol": symbol, "name": data["name"]})
-                break
+                validation = await validate_stock_symbol(symbol)
+                if validation.get("valid"):
+                    found_companies.append({
+                        "symbol": symbol,
+                        "name": validation.get("name", symbol)
+                    })
+                    seen_symbols.add(symbol)
+                    break
     
-    return found_companies
+    # 2. Extract ticker symbols using regex patterns
+    # Pattern matches: $AAPL, (AAPL), AAPL:, "AAPL", stock tickers 1-5 uppercase letters
+    ticker_patterns = [
+        r'\$([A-Z]{1,5})\b',           # $AAPL format
+        r'\(([A-Z]{1,5})\)',            # (AAPL) format
+        r'\b([A-Z]{1,5}):\s',           # AAPL: format
+        r'"([A-Z]{1,5})"',              # "AAPL" format
+        r'\b([A-Z]{2,5})\s+(?:stock|shares|Inc\.|Corp\.|Co\.)', # AAPL stock, AAPL shares
+        r'(?:ticker|symbol|stock)\s+([A-Z]{1,5})\b',  # ticker AAPL
+    ]
+    
+    potential_tickers = set()
+    for pattern in ticker_patterns:
+        matches = re.findall(pattern, text)
+        potential_tickers.update(matches)
+    
+    # 3. Also look for standalone uppercase 2-5 letter words that might be tickers
+    # But be careful to exclude common words
+    common_words = {
+        'THE', 'AND', 'FOR', 'ARE', 'BUT', 'NOT', 'YOU', 'ALL', 'CAN', 'HER',
+        'WAS', 'ONE', 'OUR', 'OUT', 'HAS', 'HIS', 'HOW', 'ITS', 'MAY', 'NEW',
+        'NOW', 'OLD', 'SEE', 'WAY', 'WHO', 'BOY', 'DID', 'GET', 'HIM', 'LET',
+        'PUT', 'SAY', 'SHE', 'TOO', 'USE', 'CEO', 'CFO', 'IPO', 'ETF', 'GDP',
+        'USA', 'RSS', 'API', 'USD', 'EUR', 'GBP', 'CNN', 'BBC', 'NBC', 'ABC',
+        'PDF', 'CEO', 'COO', 'CTO', 'NYSE', 'SEC', 'FED', 'IMF', 'WTO', 'WHO',
+        'FAQ', 'URL', 'HTML', 'HTTP', 'HTTPS', 'JSON', 'XML', 'SQL', 'PHP',
+        'EST', 'PST', 'GMT', 'UTC', 'AM', 'PM', 'VS', 'ETC', 'INC', 'LLC',
+        'CORP', 'LTD', 'PLC', 'SA', 'AG', 'NV', 'CO', 'AT', 'BY', 'IF', 'IN',
+        'IS', 'IT', 'OF', 'ON', 'OR', 'SO', 'TO', 'UP', 'US', 'WE', 'AN', 'AS',
+        'BE', 'DO', 'GO', 'HE', 'ME', 'MY', 'NO', 'OK', 'AI', 'EV', 'PC', 'TV',
+        'UK', 'UN', 'EU', 'SAID', 'SAYS', 'YEAR', 'NEWS', 'MORE', 'MOST', 'JUST'
+    }
+    
+    # Find potential tickers in context of financial news
+    standalone_pattern = r'\b([A-Z]{2,5})\b'
+    all_caps_words = re.findall(standalone_pattern, text)
+    for word in all_caps_words:
+        if word not in common_words and word not in seen_symbols:
+            # Check if surrounded by financial context
+            context_pattern = rf'(?:stock|shares|trade|buy|sell|price|market|analyst|upgrade|downgrade|target|rating)\s+{word}|{word}\s+(?:stock|shares|rose|fell|gained|dropped|surged|plunged)'
+            if re.search(context_pattern, text, re.IGNORECASE):
+                potential_tickers.add(word)
+    
+    # 4. Validate potential tickers against Yahoo Finance
+    for ticker in potential_tickers:
+        if ticker in seen_symbols:
+            continue
+        if len(ticker) < 2 or ticker in common_words:
+            continue
+            
+        validation = await validate_stock_symbol(ticker)
+        if validation.get("valid"):
+            found_companies.append({
+                "symbol": ticker,
+                "name": validation.get("name", ticker)
+            })
+            seen_symbols.add(ticker)
+    
+    return found_companies[:5]  # Limit to 5 companies per article to avoid overload
 
 async def fetch_rss_news(source: dict) -> List[dict]:
     """Fetch news from RSS feed"""
     articles = []
     try:
-        async with httpx.AsyncClient(timeout=15.0) as client:
-            response = await client.get(source["url"], follow_redirects=True)
+        async with httpx.AsyncClient(timeout=15.0) as http_client:
+            response = await http_client.get(source["url"], follow_redirects=True)
             if response.status_code == 200:
                 feed = feedparser.parse(response.text)
-                for entry in feed.entries[:20]:  # Limit to 20 articles per source
+                for entry in feed.entries[:25]:  # Get more articles per source
                     title = entry.get("title", "")
                     summary = entry.get("summary", entry.get("description", ""))
                     # Clean HTML from summary
