@@ -882,7 +882,16 @@ async def scan_and_analyze_news():
                 # Send alerts to subscribers
                 await send_signal_alerts(signal_doc)
     
-    logger.info(f"News scan complete. Generated {len(new_signals)} new signals.")
+    # Log summary
+    buy_signals = len([s for s in new_signals if s.get('signal') == 'BUY'])
+    sell_signals = len([s for s in new_signals if s.get('signal') == 'SELL'])
+    unique_symbols = len(set([s.get('symbol') for s in new_signals]))
+    
+    logger.info(f"📊 News scan complete:")
+    logger.info(f"   - Articles processed: {processed_count}")
+    logger.info(f"   - New signals: {len(new_signals)} ({buy_signals} BUY, {sell_signals} SELL)")
+    logger.info(f"   - Unique stocks: {unique_symbols}")
+    
     return new_signals
 
 # ===== EMAIL ALERT FUNCTIONS =====
