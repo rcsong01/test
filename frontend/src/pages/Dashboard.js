@@ -1027,25 +1027,80 @@ export default function Dashboard() {
                 </TabsContent>
                 
                 <TabsContent value="news" className="mt-4">
-                  {/* News Stats */}
+                  {/* News Stats with Clickable Filters */}
                   {newsStats && (
                     <div className="grid grid-cols-4 gap-3 mb-6">
+                      <div 
+                        className={cn(
+                          "p-3 border-2 cursor-pointer transition-all duration-200",
+                          signalFilter === 'ALL' 
+                            ? "bg-card border-primary" 
+                            : "bg-card border-border hover:border-primary/50"
+                        )}
+                        onClick={() => setSignalFilter('ALL')}
+                        data-testid="filter-all"
+                      >
+                        <div className="text-muted-foreground text-xs uppercase mb-1">All Signals</div>
+                        <div className="font-mono text-2xl font-bold">{newsStats.total_signals_generated}</div>
+                      </div>
                       <div className="p-3 bg-card border border-border">
                         <div className="text-muted-foreground text-xs uppercase mb-1">Articles</div>
                         <div className="font-mono text-xl">{newsStats.total_articles_analyzed}</div>
                       </div>
-                      <div className="p-3 bg-card border border-border">
-                        <div className="text-muted-foreground text-xs uppercase mb-1">Signals</div>
-                        <div className="font-mono text-xl">{newsStats.total_signals_generated}</div>
+                      <div 
+                        className={cn(
+                          "p-3 border-2 cursor-pointer transition-all duration-200",
+                          signalFilter === 'BUY' 
+                            ? "bg-positive/20 border-positive" 
+                            : "bg-card border-border hover:border-positive/50 hover:bg-positive/10"
+                        )}
+                        onClick={() => setSignalFilter(signalFilter === 'BUY' ? 'ALL' : 'BUY')}
+                        data-testid="filter-buy"
+                      >
+                        <div className="text-muted-foreground text-xs uppercase mb-1 flex items-center gap-1">
+                          <TrendingUp className="h-3 w-3 text-positive" />
+                          Buy Signals
+                        </div>
+                        <div className="font-mono text-2xl font-bold text-positive">{newsStats.buy_signals}</div>
+                        <div className="text-xs text-muted-foreground mt-1">Click to filter</div>
                       </div>
-                      <div className="p-3 bg-card border border-border">
-                        <div className="text-muted-foreground text-xs uppercase mb-1">Buy</div>
-                        <div className="font-mono text-xl text-positive">{newsStats.buy_signals}</div>
+                      <div 
+                        className={cn(
+                          "p-3 border-2 cursor-pointer transition-all duration-200",
+                          signalFilter === 'SELL' 
+                            ? "bg-negative/20 border-negative" 
+                            : "bg-card border-border hover:border-negative/50 hover:bg-negative/10"
+                        )}
+                        onClick={() => setSignalFilter(signalFilter === 'SELL' ? 'ALL' : 'SELL')}
+                        data-testid="filter-sell"
+                      >
+                        <div className="text-muted-foreground text-xs uppercase mb-1 flex items-center gap-1">
+                          <TrendingDown className="h-3 w-3 text-negative" />
+                          Sell Signals
+                        </div>
+                        <div className="font-mono text-2xl font-bold text-negative">{newsStats.sell_signals}</div>
+                        <div className="text-xs text-muted-foreground mt-1">Click to filter</div>
                       </div>
-                      <div className="p-3 bg-card border border-border">
-                        <div className="text-muted-foreground text-xs uppercase mb-1">Sell</div>
-                        <div className="font-mono text-xl text-negative">{newsStats.sell_signals}</div>
-                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Active Filter Indicator */}
+                  {signalFilter !== 'ALL' && (
+                    <div className="mb-4 flex items-center gap-2">
+                      <Badge className={cn(
+                        "text-sm px-3 py-1",
+                        signalFilter === 'BUY' ? "bg-positive text-black" : "bg-negative text-white"
+                      )}>
+                        Showing {signalFilter} signals only
+                      </Badge>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={() => setSignalFilter('ALL')}
+                        className="text-xs"
+                      >
+                        Clear filter
+                      </Button>
                     </div>
                   )}
                   
@@ -1057,6 +1112,11 @@ export default function Dashboard() {
                           <Zap className="h-5 w-5 text-primary" />
                           Live News Signals
                           <Radio className="h-3 w-3 text-primary animate-pulse ml-2" />
+                          {signalFilter !== 'ALL' && (
+                            <Badge variant="outline" className="ml-2 text-xs">
+                              {filteredSignals.length} {signalFilter}
+                            </Badge>
+                          )}
                         </CardTitle>
                         <Button 
                           variant="outline" 
@@ -1070,14 +1130,22 @@ export default function Dashboard() {
                       </div>
                     </CardHeader>
                     <CardContent>
-                      <ScrollArea className="h-[500px]">
-                        {newsSignals.length === 0 ? (
+                      <ScrollArea className="h-[500px] [&_[data-radix-scroll-area-viewport]]:!overflow-y-scroll [&_[data-radix-scroll-area-scrollbar]]:!bg-white/20 [&_[data-radix-scroll-area-thumb]]:!bg-white/60">
+                        {filteredSignals.length === 0 ? (
                           <div className="text-center py-12 text-muted-foreground">
                             <Newspaper className="h-16 w-16 mx-auto mb-4 opacity-50" />
-                            <p className="font-mono text-sm mb-2">No news signals yet</p>
-                            <p className="text-xs mb-4">Click "Scan News" to analyze latest market news</p>
-                            <Button 
-                              onClick={handleScanNews}
+                            <p className="font-mono text-sm mb-2">
+                              {signalFilter !== 'ALL' ? `No ${signalFilter} signals yet` : 'No news signals yet'}
+                            </p>
+                            <p className="text-xs mb-4">
+                              {signalFilter !== 'ALL' 
+                                ? <Button variant="link" onClick={() => setSignalFilter('ALL')} className="text-xs p-0 h-auto">Show all signals</Button>
+                                : 'Click "Scan News" to analyze latest market news'
+                              }
+                            </p>
+                            {signalFilter === 'ALL' && (
+                              <Button 
+                                onClick={handleScanNews}
                               disabled={isScanning}
                               className="bg-primary text-black font-mono uppercase"
                             >
