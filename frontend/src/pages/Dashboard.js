@@ -117,9 +117,9 @@ const PortfolioSummary = ({ portfolio }) => {
 const NewsSignalCard = ({ signal, onClick }) => {
   const getSignalIcon = (sig) => {
     switch (sig) {
-      case 'BUY': return <TrendingUp className="h-5 w-5" />;
-      case 'SELL': return <TrendingDown className="h-5 w-5" />;
-      default: return <Minus className="h-5 w-5" />;
+      case 'BUY': return <TrendingUp className="h-6 w-6" />;
+      case 'SELL': return <TrendingDown className="h-6 w-6" />;
+      default: return <Minus className="h-6 w-6" />;
     }
   };
 
@@ -161,40 +161,40 @@ const NewsSignalCard = ({ signal, onClick }) => {
     <div 
       className={cn(
         "p-4 border-2 bg-card hover:bg-secondary/30 cursor-pointer transition-all duration-200 relative overflow-hidden group",
-        isBuy ? "border-positive hover:border-positive bg-positive/5" : isSell ? "border-negative hover:border-negative bg-negative/5" : "border-border"
+        isBuy ? "border-emerald-500 hover:border-emerald-400 bg-emerald-500/10" : isSell ? "border-red-500 hover:border-red-400 bg-red-500/10" : "border-border"
       )}
       onClick={() => onClick(signal.symbol)}
       data-testid={`news-signal-${signal.id}`}
     >
-      {/* Signal indicator stripe - thicker */}
+      {/* Signal indicator stripe - thick left bar */}
       <div className={cn(
-        "absolute left-0 top-0 bottom-0 w-3",
-        isBuy ? 'bg-positive' : isSell ? 'bg-negative' : 'bg-accent'
+        "absolute left-0 top-0 bottom-0 w-2",
+        isBuy ? 'bg-emerald-500' : isSell ? 'bg-red-500' : 'bg-accent'
       )} />
       
-      <div className="pl-5">
-        {/* Header with VERY prominent signal badge */}
-        <div className="flex justify-between items-start mb-3">
-          <div className="flex items-center gap-4">
-            {/* VERY Large prominent signal badge */}
+      <div className="pl-4">
+        {/* Header row: Signal Badge + Symbol on left, DateTime on right */}
+        <div className="flex justify-between items-center mb-3">
+          <div className="flex items-center gap-3">
+            {/* HUGE, UNMISSABLE Signal Badge */}
             <div className={cn(
-              "flex items-center gap-2 px-5 py-3 font-mono text-lg font-black uppercase tracking-wider shadow-lg",
-              isBuy ? "bg-positive text-black" : isSell ? "bg-negative text-white" : "bg-accent text-white"
+              "flex items-center gap-2 px-4 py-2 rounded-md font-bold text-lg uppercase tracking-wide shadow-md border-2",
+              isBuy 
+                ? "bg-emerald-500 text-white border-emerald-400" 
+                : isSell 
+                  ? "bg-red-500 text-white border-red-400" 
+                  : "bg-gray-500 text-white border-gray-400"
             )}>
               {getSignalIcon(signal.signal)}
-              <span className="text-xl">{signal.signal}</span>
+              <span className="text-xl font-black">{signal.signal}</span>
             </div>
-            {/* Stock symbol */}
-            <span className="font-heading font-bold uppercase text-3xl tracking-tight">{signal.symbol}</span>
-          </div>
-            </div>
-            {/* Stock symbol */}
-            <span className="font-heading font-bold uppercase text-2xl tracking-tight">{signal.symbol}</span>
+            {/* Stock Symbol */}
+            <span className="font-heading font-bold uppercase text-2xl tracking-tight text-foreground">{signal.symbol}</span>
           </div>
           {/* Date/Time */}
           <div className="text-right">
-            <div className="font-mono text-base text-primary font-bold">{timeStr}</div>
-            <div className="font-mono text-sm text-muted-foreground">{dateStr}</div>
+            <div className="font-mono text-sm text-primary font-bold">{timeStr}</div>
+            <div className="font-mono text-xs text-muted-foreground">{dateStr}</div>
           </div>
         </div>
 
