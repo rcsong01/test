@@ -1719,7 +1719,7 @@ async def send_test_alert(email: str):
         "reasoning": "This is a test alert to verify your email subscription is working correctly. When real signals are generated, you'll receive similar alerts with actual news and AI analysis.",
         "news_title": "Test Alert: Your MarketGenius Subscription is Active",
         "news_source": "MarketGenius AI",
-        "news_url": "https://marketgenius-23.preview.emergentagent.com"
+        "news_url": "https://aitrader-117.preview.emergentagent.com"
     }
     
     success = await send_alert_email(email, test_signal)
