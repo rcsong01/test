@@ -1152,10 +1152,11 @@ export default function Dashboard() {
                               {isScanning ? <RefreshCw className="h-4 w-4 animate-spin mr-2" /> : <Newspaper className="h-4 w-4 mr-2" />}
                               Start Scanning
                             </Button>
+                            )}
                           </div>
                         ) : (
-                          <div className="space-y-3">
-                            {newsSignals.map((signal) => (
+                          <div className="space-y-4">
+                            {filteredSignals.map((signal) => (
                               <NewsSignalCard 
                                 key={signal.id} 
                                 signal={signal} 
