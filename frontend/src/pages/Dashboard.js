@@ -130,6 +130,41 @@ const NewsSignalCard = ({ signal, onClick }) => {
       default: return <Minus className="h-4 w-4" />;
     }
   };
+
+  const formatDateTime = (timestamp) => {
+    if (!timestamp) return '';
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    
+    // Format time
+    const timeStr = date.toLocaleTimeString('en-US', { 
+      hour: '2-digit', 
+      minute: '2-digit',
+      hour12: true 
+    });
+    
+    // Format date
+    const dateStr = date.toLocaleDateString('en-US', { 
+      month: 'short', 
+      day: 'numeric',
+      year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined
+    });
+    
+    // Relative time for recent signals
+    let relativeTime = '';
+    if (diffMins < 60) {
+      relativeTime = diffMins <= 1 ? 'Just now' : `${diffMins}m ago`;
+    } else if (diffHours < 24) {
+      relativeTime = `${diffHours}h ago`;
+    }
+    
+    return { dateStr, timeStr, relativeTime };
+  };
+
+  const { dateStr, timeStr, relativeTime } = formatDateTime(signal.created_at);
   
   return (
     <div 
@@ -144,19 +179,32 @@ const NewsSignalCard = ({ signal, onClick }) => {
       )} />
       
       <div className="pl-3">
-        <div className="flex justify-between items-start mb-2">
+        {/* Date/Time Header - Very Visible */}
+        <div className="flex justify-between items-center mb-2 pb-2 border-b border-border/50">
           <div className="flex items-center gap-2">
             <Badge className={cn("font-mono text-xs", getSignalColor(signal.signal))}>
               {getSignalIcon(signal.signal)}
               <span className="ml-1">{signal.signal}</span>
             </Badge>
-            <span className="font-heading font-bold uppercase">{signal.symbol}</span>
+            <span className="font-heading font-bold uppercase text-lg">{signal.symbol}</span>
           </div>
-          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-            <Zap className="h-3 w-3" />
-            <span>{signal.confidence}%</span>
+          <div className="text-right">
+            <div className="font-mono text-sm text-primary font-bold">{timeStr}</div>
+            <div className="font-mono text-xs text-muted-foreground">{dateStr}</div>
           </div>
         </div>
+
+        {/* Relative time badge if recent */}
+        {relativeTime && (
+          <div className="mb-2">
+            <Badge variant="outline" className="font-mono text-xs border-primary/50 text-primary">
+              {relativeTime}
+            </Badge>
+            <span className="ml-2 text-xs text-muted-foreground flex-inline items-center gap-1">
+              <Zap className="h-3 w-3 inline" /> {signal.confidence}% confidence
+            </span>
+          </div>
+        )}
         
         <h4 className="text-sm font-medium mb-2 line-clamp-2 group-hover:text-primary transition-colors">
           {signal.news_title}
