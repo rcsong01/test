@@ -638,6 +638,13 @@ export default function Dashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [isScanning, setIsScanning] = useState(false);
   const [activeTab, setActiveTab] = useState('market');
+  const [signalFilter, setSignalFilter] = useState('ALL'); // ALL, BUY, SELL
+  
+  // Filter signals based on selected filter
+  const filteredSignals = newsSignals.filter(signal => {
+    if (signalFilter === 'ALL') return true;
+    return signal.signal === signalFilter;
+  });
   
   const fetchDashboardData = useCallback(async () => {
     setIsLoading(true);
