@@ -161,28 +161,32 @@ const NewsSignalCard = ({ signal, onClick }) => {
     <div 
       className={cn(
         "p-4 border-2 bg-card hover:bg-secondary/30 cursor-pointer transition-all duration-200 relative overflow-hidden group",
-        isBuy ? "border-positive/50 hover:border-positive" : isSell ? "border-negative/50 hover:border-negative" : "border-border"
+        isBuy ? "border-positive hover:border-positive bg-positive/5" : isSell ? "border-negative hover:border-negative bg-negative/5" : "border-border"
       )}
       onClick={() => onClick(signal.symbol)}
       data-testid={`news-signal-${signal.id}`}
     >
       {/* Signal indicator stripe - thicker */}
       <div className={cn(
-        "absolute left-0 top-0 bottom-0 w-2",
+        "absolute left-0 top-0 bottom-0 w-3",
         isBuy ? 'bg-positive' : isSell ? 'bg-negative' : 'bg-accent'
       )} />
       
-      <div className="pl-4">
-        {/* Header with prominent signal badge */}
+      <div className="pl-5">
+        {/* Header with VERY prominent signal badge */}
         <div className="flex justify-between items-start mb-3">
-          <div className="flex items-center gap-3">
-            {/* Large prominent signal badge */}
+          <div className="flex items-center gap-4">
+            {/* VERY Large prominent signal badge */}
             <div className={cn(
-              "flex items-center gap-2 px-4 py-2 font-mono text-sm font-bold uppercase tracking-wider",
+              "flex items-center gap-2 px-5 py-3 font-mono text-lg font-black uppercase tracking-wider shadow-lg",
               isBuy ? "bg-positive text-black" : isSell ? "bg-negative text-white" : "bg-accent text-white"
             )}>
               {getSignalIcon(signal.signal)}
-              <span>{signal.signal}</span>
+              <span className="text-xl">{signal.signal}</span>
+            </div>
+            {/* Stock symbol */}
+            <span className="font-heading font-bold uppercase text-3xl tracking-tight">{signal.symbol}</span>
+          </div>
             </div>
             {/* Stock symbol */}
             <span className="font-heading font-bold uppercase text-2xl tracking-tight">{signal.symbol}</span>
