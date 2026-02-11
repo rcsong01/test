@@ -904,16 +904,27 @@ export default function Dashboard() {
             {/* Center Column - Main Content with Tabs */}
             <div className="col-span-12 lg:col-span-6 space-y-6">
               <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                <TabsList className="grid w-full grid-cols-2 bg-secondary">
-                  <TabsTrigger value="market" className="font-mono uppercase text-xs data-[state=active]:bg-primary data-[state=active]:text-black">
-                    <BarChart3 className="h-4 w-4 mr-2" />
+                <TabsList className="grid w-full grid-cols-2 bg-secondary h-14 p-1">
+                  <TabsTrigger 
+                    value="market" 
+                    className="font-mono uppercase text-sm h-12 cursor-pointer transition-all duration-200 hover:bg-secondary/80 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-md"
+                    data-testid="market-tab"
+                  >
+                    <BarChart3 className="h-5 w-5 mr-2" />
                     Market
                   </TabsTrigger>
-                  <TabsTrigger value="news" className="font-mono uppercase text-xs data-[state=active]:bg-primary data-[state=active]:text-black">
-                    <Newspaper className="h-4 w-4 mr-2" />
+                  <TabsTrigger 
+                    value="news" 
+                    className={cn(
+                      "font-mono uppercase text-sm h-12 cursor-pointer transition-all duration-200 hover:bg-secondary/80 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-md",
+                      newsSignals.length > 0 && activeTab !== 'news' && "animate-pulse border-2 border-primary"
+                    )}
+                    data-testid="news-signals-tab"
+                  >
+                    <Newspaper className="h-5 w-5 mr-2" />
                     News Signals
                     {newsSignals.length > 0 && (
-                      <Badge className="ml-2 bg-destructive text-white text-xs">{newsSignals.length}</Badge>
+                      <Badge className="ml-2 bg-primary text-black text-sm font-bold px-2 py-0.5">{newsSignals.length}</Badge>
                     )}
                   </TabsTrigger>
                 </TabsList>
