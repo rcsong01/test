@@ -1100,8 +1100,10 @@ export default function Dashboard() {
                         </Button>
                       </div>
                     </CardHeader>
-                    <CardContent>
-                      <div className="h-[500px] overflow-y-scroll pr-2 news-feed-scroll" style={{ scrollbarGutter: 'stable' }}>
+                    <CardContent className="relative">
+                      {/* Scroll indicator bar - always visible */}
+                      <div className="absolute right-0 top-0 bottom-0 w-3 bg-white/10 rounded-full z-10" />
+                      <div className="h-[500px] overflow-y-scroll pr-6 news-feed-scroll" style={{ scrollbarGutter: 'stable' }}>
                         {filteredSignals.length === 0 ? (
                           <div className="text-center py-12 text-muted-foreground">
                             <Newspaper className="h-16 w-16 mx-auto mb-4 opacity-50" />
