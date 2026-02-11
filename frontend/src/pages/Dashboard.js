@@ -237,39 +237,6 @@ const NewsSignalCard = ({ signal, onClick }) => {
     </div>
   );
 };
-            </span>
-          </div>
-        )}
-        
-        <h4 className="text-sm font-medium mb-2 line-clamp-2 group-hover:text-primary transition-colors">
-          {signal.news_title}
-        </h4>
-        
-        <p className="text-xs text-muted-foreground mb-2 line-clamp-2">
-          {signal.reasoning}
-        </p>
-        
-        <div className="flex justify-between items-center text-xs text-muted-foreground">
-          <span className="flex items-center gap-1">
-            <Newspaper className="h-3 w-3" />
-            {signal.news_source}
-          </span>
-          <a 
-            href={signal.news_url} 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="flex items-center gap-1 hover:text-primary"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <ExternalLink className="h-3 w-3" />
-            Source
-          </a>
-        </div>
-      </div>
-    </div>
-  );
-};
-
 // AI Recommendation Card
 const AIRecommendationCard = ({ recommendation }) => {
   const getRecommendationColor = (rec) => {
