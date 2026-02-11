@@ -234,10 +234,9 @@ const NewsSignalCard = ({ signal, onClick }) => {
           </a>
         </div>
       </div>
-              {relativeTime}
-            </Badge>
-            <span className="ml-2 text-xs text-muted-foreground flex-inline items-center gap-1">
-              <Zap className="h-3 w-3 inline" /> {signal.confidence}% confidence
+    </div>
+  );
+};
             </span>
           </div>
         )}
