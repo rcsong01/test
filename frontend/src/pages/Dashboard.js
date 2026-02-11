@@ -1101,7 +1101,7 @@ export default function Dashboard() {
                       </div>
                     </CardHeader>
                     <CardContent>
-                      <ScrollArea className="h-[500px] [&_[data-radix-scroll-area-viewport]]:!overflow-y-scroll [&_[data-radix-scroll-area-scrollbar]]:!bg-white/20 [&_[data-radix-scroll-area-thumb]]:!bg-white/60">
+                      <div className="h-[500px] overflow-y-auto pr-2 news-feed-scroll">
                         {filteredSignals.length === 0 ? (
                           <div className="text-center py-12 text-muted-foreground">
                             <Newspaper className="h-16 w-16 mx-auto mb-4 opacity-50" />
@@ -1136,7 +1136,7 @@ export default function Dashboard() {
                             ))}
                           </div>
                         )}
-                      </ScrollArea>
+                      </div>
                     </CardContent>
                   </Card>
                 </TabsContent>
