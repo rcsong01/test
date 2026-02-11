@@ -115,45 +115,34 @@ const PortfolioSummary = ({ portfolio }) => {
 
 // News Signal Card Component
 const NewsSignalCard = ({ signal, onClick }) => {
-  const getSignalColor = (sig) => {
-    switch (sig) {
-      case 'BUY': return 'bg-positive text-black';
-      case 'SELL': return 'bg-negative text-white';
-      default: return 'bg-accent text-white';
-    }
-  };
-  
   const getSignalIcon = (sig) => {
     switch (sig) {
-      case 'BUY': return <TrendingUp className="h-4 w-4" />;
-      case 'SELL': return <TrendingDown className="h-4 w-4" />;
-      default: return <Minus className="h-4 w-4" />;
+      case 'BUY': return <TrendingUp className="h-5 w-5" />;
+      case 'SELL': return <TrendingDown className="h-5 w-5" />;
+      default: return <Minus className="h-5 w-5" />;
     }
   };
 
   const formatDateTime = (timestamp) => {
-    if (!timestamp) return '';
+    if (!timestamp) return { dateStr: '', timeStr: '', relativeTime: '' };
     const date = new Date(timestamp);
     const now = new Date();
     const diffMs = now - date;
     const diffMins = Math.floor(diffMs / 60000);
     const diffHours = Math.floor(diffMs / 3600000);
     
-    // Format time
     const timeStr = date.toLocaleTimeString('en-US', { 
       hour: '2-digit', 
       minute: '2-digit',
       hour12: true 
     });
     
-    // Format date
     const dateStr = date.toLocaleDateString('en-US', { 
       month: 'short', 
       day: 'numeric',
       year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined
     });
     
-    // Relative time for recent signals
     let relativeTime = '';
     if (diffMins < 60) {
       relativeTime = diffMins <= 1 ? 'Just now' : `${diffMins}m ago`;
@@ -165,39 +154,86 @@ const NewsSignalCard = ({ signal, onClick }) => {
   };
 
   const { dateStr, timeStr, relativeTime } = formatDateTime(signal.created_at);
+  const isBuy = signal.signal === 'BUY';
+  const isSell = signal.signal === 'SELL';
   
   return (
     <div 
-      className="p-4 border border-border bg-card hover:bg-secondary/30 cursor-pointer transition-all duration-200 relative overflow-hidden group"
+      className={cn(
+        "p-4 border-2 bg-card hover:bg-secondary/30 cursor-pointer transition-all duration-200 relative overflow-hidden group",
+        isBuy ? "border-positive/50 hover:border-positive" : isSell ? "border-negative/50 hover:border-negative" : "border-border"
+      )}
       onClick={() => onClick(signal.symbol)}
       data-testid={`news-signal-${signal.id}`}
     >
-      {/* Signal indicator stripe */}
+      {/* Signal indicator stripe - thicker */}
       <div className={cn(
-        "absolute left-0 top-0 bottom-0 w-1",
-        signal.signal === 'BUY' ? 'bg-positive' : signal.signal === 'SELL' ? 'bg-negative' : 'bg-accent'
+        "absolute left-0 top-0 bottom-0 w-2",
+        isBuy ? 'bg-positive' : isSell ? 'bg-negative' : 'bg-accent'
       )} />
       
-      <div className="pl-3">
-        {/* Date/Time Header - Very Visible */}
-        <div className="flex justify-between items-center mb-2 pb-2 border-b border-border/50">
-          <div className="flex items-center gap-2">
-            <Badge className={cn("font-mono text-xs", getSignalColor(signal.signal))}>
+      <div className="pl-4">
+        {/* Header with prominent signal badge */}
+        <div className="flex justify-between items-start mb-3">
+          <div className="flex items-center gap-3">
+            {/* Large prominent signal badge */}
+            <div className={cn(
+              "flex items-center gap-2 px-4 py-2 font-mono text-sm font-bold uppercase tracking-wider",
+              isBuy ? "bg-positive text-black" : isSell ? "bg-negative text-white" : "bg-accent text-white"
+            )}>
               {getSignalIcon(signal.signal)}
-              <span className="ml-1">{signal.signal}</span>
-            </Badge>
-            <span className="font-heading font-bold uppercase text-lg">{signal.symbol}</span>
+              <span>{signal.signal}</span>
+            </div>
+            {/* Stock symbol */}
+            <span className="font-heading font-bold uppercase text-2xl tracking-tight">{signal.symbol}</span>
           </div>
+          {/* Date/Time */}
           <div className="text-right">
-            <div className="font-mono text-sm text-primary font-bold">{timeStr}</div>
-            <div className="font-mono text-xs text-muted-foreground">{dateStr}</div>
+            <div className="font-mono text-base text-primary font-bold">{timeStr}</div>
+            <div className="font-mono text-sm text-muted-foreground">{dateStr}</div>
           </div>
         </div>
 
-        {/* Relative time badge if recent */}
-        {relativeTime && (
-          <div className="mb-2">
-            <Badge variant="outline" className="font-mono text-xs border-primary/50 text-primary">
+        {/* Confidence and relative time */}
+        <div className="flex items-center gap-3 mb-3">
+          {relativeTime && (
+            <Badge variant="outline" className="font-mono text-xs border-primary text-primary px-2 py-1">
+              {relativeTime}
+            </Badge>
+          )}
+          <div className="flex items-center gap-1 text-sm">
+            <Zap className={cn("h-4 w-4", signal.confidence >= 80 ? "text-primary" : "text-muted-foreground")} />
+            <span className={cn("font-mono font-bold", signal.confidence >= 80 ? "text-primary" : "text-muted-foreground")}>
+              {signal.confidence}% confidence
+            </span>
+          </div>
+        </div>
+        
+        <h4 className="text-base font-medium mb-2 line-clamp-2 group-hover:text-primary transition-colors">
+          {signal.news_title}
+        </h4>
+        
+        <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
+          {signal.reasoning}
+        </p>
+        
+        <div className="flex justify-between items-center text-xs text-muted-foreground pt-2 border-t border-border/30">
+          <span className="flex items-center gap-1">
+            <Newspaper className="h-3 w-3" />
+            {signal.news_source}
+          </span>
+          <a 
+            href={signal.news_url} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="flex items-center gap-1 hover:text-primary"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <ExternalLink className="h-3 w-3" />
+            Source
+          </a>
+        </div>
+      </div>
               {relativeTime}
             </Badge>
             <span className="ml-2 text-xs text-muted-foreground flex-inline items-center gap-1">
