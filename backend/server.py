@@ -1113,14 +1113,14 @@ async def send_signal_alerts(signal: dict):
 news_scan_running = False
 
 async def periodic_news_scan():
-    """Run news scan every 15 minutes"""
+    """Run news scan every 5 minutes for faster coverage"""
     global news_scan_running
     while news_scan_running:
         try:
             await scan_and_analyze_news()
         except Exception as e:
             logger.error(f"Periodic news scan error: {e}")
-        await asyncio.sleep(900)  # 15 minutes
+        await asyncio.sleep(300)  # 5 minutes
 
 # ===== API ROUTES =====
 
