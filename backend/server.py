@@ -309,15 +309,34 @@ validated_symbols_cache = {}
 
 # Reliable verified news sources ONLY - major financial outlets
 NEWS_SOURCES = [
+    # Major Financial News
     {"name": "Yahoo Finance", "url": "https://finance.yahoo.com/news/rssindex", "type": "rss"},
     {"name": "CNBC", "url": "https://www.cnbc.com/id/100003114/device/rss/rss.html", "type": "rss"},
+    {"name": "CNBC World", "url": "https://www.cnbc.com/id/100727362/device/rss/rss.html", "type": "rss"},
     {"name": "MarketWatch", "url": "https://feeds.marketwatch.com/marketwatch/topstories/", "type": "rss"},
+    {"name": "MarketWatch Stocks", "url": "https://feeds.marketwatch.com/marketwatch/marketpulse/", "type": "rss"},
     {"name": "WSJ Markets", "url": "https://feeds.a.dj.com/rss/RSSMarketsMain.xml", "type": "rss"},
+    {"name": "WSJ Business", "url": "https://feeds.a.dj.com/rss/WSJcomUSBusiness.xml", "type": "rss"},
     {"name": "Bloomberg", "url": "https://feeds.bloomberg.com/markets/news.rss", "type": "rss"},
     {"name": "Reuters Business", "url": "https://www.reuters.com/rssFeed/businessNews", "type": "rss"},
+    {"name": "Reuters Company News", "url": "https://www.reuters.com/rssFeed/companyNews", "type": "rss"},
     {"name": "Investing.com", "url": "https://www.investing.com/rss/news.rss", "type": "rss"},
+    {"name": "Investing.com Stock", "url": "https://www.investing.com/rss/stock_stock_news.rss", "type": "rss"},
     {"name": "Financial Times", "url": "https://www.ft.com/rss/home", "type": "rss"},
     {"name": "Barrons", "url": "https://www.barrons.com/articles/rss", "type": "rss"},
+    # Tech & Business News
+    {"name": "Seeking Alpha", "url": "https://seekingalpha.com/market_currents.xml", "type": "rss"},
+    {"name": "Seeking Alpha News", "url": "https://seekingalpha.com/feed.xml", "type": "rss"},
+    {"name": "Benzinga", "url": "https://www.benzinga.com/feed", "type": "rss"},
+    {"name": "The Motley Fool", "url": "https://www.fool.com/feeds/index.aspx", "type": "rss"},
+    {"name": "Investor's Business Daily", "url": "https://www.investors.com/feed/", "type": "rss"},
+    {"name": "Zacks", "url": "https://www.zacks.com/feeds/", "type": "rss"},
+    # General Business News
+    {"name": "AP Business", "url": "https://rsshub.app/apnews/topics/business", "type": "rss"},
+    {"name": "BBC Business", "url": "https://feeds.bbci.co.uk/news/business/rss.xml", "type": "rss"},
+    {"name": "NPR Business", "url": "https://feeds.npr.org/1006/rss.xml", "type": "rss"},
+    {"name": "NY Times Business", "url": "https://rss.nytimes.com/services/xml/rss/nyt/Business.xml", "type": "rss"},
+    {"name": "Washington Post Business", "url": "https://feeds.washingtonpost.com/rss/business", "type": "rss"},
 ]
 
 # ===== HELPER FUNCTIONS =====
